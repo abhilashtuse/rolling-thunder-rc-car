@@ -61,11 +61,17 @@ test_foo.o: $(UT_DIR)/test_foo.cpp foo.o
 c_list.o: $(PROJ_DIR)/L3_Utils/src/c_list.c
 	$(CXX) $(CGREEN_HEADERS) $(HEADER_DIR) $(CXXFLAGS) -c $(PROJ_DIR)/L3_Utils/src/c_list.c $(LIBS)
 
+geo_gps.o: $(PROJ_DIR)/L5_Application/source/geo_gps.cpp
+	$(CXX) $(CGREEN_HEADERS) $(HEADER_DIR) $(CXXFLAGS) -c $(PROJ_DIR)L5_Application/source/geo_gps.cpp $(LIBS)
+
+test_geo_gps.o: $(UT_DIR)/test_geo_gps.cpp geo_gps.o
+	$(CXX) $(CGREEN_HEADERS) $(HEADER_DIR) $(CXXFLAGS) -c $(UT_DIR)/test_geo_gps.cpp $(LIBS)
+
 #gps_parse.o: $(PROJ_DIR)/L5_Application/gps_parse.c
 #	$(CXX) $(CGREEN_HEADERS) $(HEADER_DIR) $(CXXFLAGS) -c $(PROJ_DIR)/L5_Application/gps_parse.c $(LIBS)
 	
 test_c_list.o: $(UT_DIR)/test_c_list.c $(HEADER_DIR) c_list.o
 	$(CXX) $(CGREEN_HEADERS) $(HEADER_DIR) $(CXXFLAGS) -c $(UT_DIR)/test_c_list.c $(LIBS)
 
-test_all: test_main.o c_list.o foo.o # gps_parse.o
+test_all: test_main.o c_list.o foo.o geo_gps.o
 	$(CXX) $(CGREEN_HEADERS) $(HEADER_DIR) $(CXXFLAGS) $^ -o $@ $(LIBS)

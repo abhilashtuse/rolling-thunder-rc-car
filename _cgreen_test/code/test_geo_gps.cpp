@@ -21,14 +21,23 @@ using namespace cgreen;
 Ensure(test_GetLongitude)
 {
     GeoGPS geo_gps;
-    //gps_handle_string("123.123,456.789");
-    assert_equal(geo_gps.GetLongitude(), 123.123);
+    geo_gps.SetLongitude(10);
+    assert_equal(geo_gps.GetLongitude(), 10);
+}
+
+Ensure(test_GetLatitude)
+{
+    GeoGPS geo_gps;
+    geo_gps.SetLatitude(20);
+    assert_equal(geo_gps.GetLatitude(), 20);
 }
 
 TestSuite *geo_gps_test_suite()
 {
     TestSuite *suite = create_test_suite();
     add_test(suite, test_GetLongitude);
+    add_test(suite, test_GetLatitude);
+
     return suite;
 }
 

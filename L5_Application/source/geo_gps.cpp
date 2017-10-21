@@ -5,14 +5,30 @@
  *      Author: abhilash
  */
 
-#include <geo_gps.h>
+#include "geo_gps.h"
 
-GeoGPS::GeoGPS()
+void GeoGPS::SetLongitude(float long_val)
 {
-    // TODO Auto-generated constructor stub
-
+    longitude = long_val;
 }
 
-GeoGPS::GetLongitude() {
+void GeoGPS::SetLatitude(float lat_val)
+{
+    latitude = lat_val;
+}
 
+float GeoGPS::GetLongitude()
+{
+    return longitude;
+}
+
+float GeoGPS::GetLatitude()
+{
+    return latitude;
+}
+
+void GeoGPS::ParseGPSString(std::string gps_str)
+{
+    latitude = 0;
+    longitude = 0;
 }
