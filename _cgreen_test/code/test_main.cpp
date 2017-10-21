@@ -10,9 +10,7 @@ using namespace cgreen;
 // Include other files under test
 #include "test_c_list.c"
 #include "test_foo.cpp"
-//#include "test_gps_parse.cpp"
-
-
+#include "test_geo_gps.cpp"
 
 #define SHOW_SAMPLE_PASS_AND_FAIL_TESTS_ONLY         0
 
@@ -42,7 +40,7 @@ Ensure(these_strings_should_match)
     assert_string_not_equal("Hello", "hello");
 }
 
-TestSuite *assertion_tests() 
+TestSuite *assertion_tests()
 {
     TestSuite *suite = create_test_suite();
     add_test(suite, these_should_be_true);
@@ -54,23 +52,23 @@ TestSuite *assertion_tests()
 
 static int an_integer = 0;
 
-void set_up_an_integer() 
+void set_up_an_integer()
 {
     an_integer = 1;
 }
 
-Ensure(confirm_integer_is_set_up) 
+Ensure(confirm_integer_is_set_up)
 {
     assert_equal_with_message(an_integer, 1, "Could not set up the integer");
     an_integer = 2;
 }
 
-Ensure(check_again_during_teardown) 
+Ensure(check_again_during_teardown)
 {
     assert_equal_with_message(an_integer, 2, "Integer was changed from 1 to %d", an_integer);
 }
 
-TestSuite *fixture_tests() 
+TestSuite *fixture_tests()
 {
     TestSuite *suite = create_test_suite();
     set_setup(suite, set_up_an_integer);
@@ -79,17 +77,17 @@ TestSuite *fixture_tests()
     return suite;
 }
 
-static void print_something_during_setup() 
+static void print_something_during_setup()
 {
     printf("\tI was called during setup\n");
 }
 
-Ensure(print_something_during_a_test) 
+Ensure(print_something_during_a_test)
 {
     printf("\tI am a test\n");
 }
 
-static void print_something_during_teardown() 
+static void print_something_during_teardown()
 {
     printf("\tI was called during teardown\n");
 }
@@ -103,17 +101,17 @@ TestSuite *visible_test()
     return suite;
 }
 
-static void print_something_during_suite_setup() 
+static void print_something_during_suite_setup()
 {
     printf("I was called during suite setup\n");
 }
 
-static void print_something_during_suite_teardown() 
+static void print_something_during_suite_teardown()
 {
     printf("I was called during suite teardown\n");
 }
 
-TestSuite *visible_fixtures() 
+TestSuite *visible_fixtures()
 {
     TestSuite *suite = create_test_suite();
     set_setup(suite, print_something_during_suite_setup);
@@ -125,23 +123,23 @@ TestSuite *visible_fixtures()
 
 int interference = 0;
 
-Ensure(create_test_interference) 
+Ensure(create_test_interference)
 {
     interference = 1;
 }
 
-Ensure(prove_there_is_no_test_interference) 
+Ensure(prove_there_is_no_test_interference)
 {
     assert_equal(interference, 0);
 }
 
-Ensure(seg_fault) 
+Ensure(seg_fault)
 {
     int *p = NULL;
     (*p)++;
 }
 
-Ensure(time_out_in_only_one_second) 
+Ensure(time_out_in_only_one_second)
 {
     die_in(1);
     sleep(10);
@@ -157,18 +155,18 @@ TestSuite *isolation_tests()
     return suite;
 }
 
-static void takes_integer(int i) 
+static void takes_integer(int i)
 {
     mock(i);
 }
 
-Ensure(expectation_confirmed) 
+Ensure(expectation_confirmed)
 {
     expect(takes_integer, when(i, is_equal_to(3)));
     takes_integer(3);
 }
 
-Ensure(expectation_dashed) 
+Ensure(expectation_dashed)
 {
     expect(takes_integer, when(i, is_equal_to(3)));
     takes_integer(4);
@@ -179,7 +177,7 @@ static void mixed_parameters(int i, char *s)
     mock(i, s);
 }
 
-Ensure(confirming_multiple_parameters_multiple_times) 
+Ensure(confirming_multiple_parameters_multiple_times)
 {
     expect(mixed_parameters, when(i, is_equal_to(1)), when(s, is_equal_to_string("Hello")));
     expect(mixed_parameters, when(i, is_equal_to(2)), when(s, is_equal_to_string("Goodbye")));
@@ -187,7 +185,7 @@ Ensure(confirming_multiple_parameters_multiple_times)
     mixed_parameters(2, "Goodbye");
 }
 
-Ensure(breaking_multiple_parameters_multiple_times) 
+Ensure(breaking_multiple_parameters_multiple_times)
 {
     expect(mixed_parameters, when(i, is_equal_to(1)), when(s, is_equal_to_string("Hello")));
     expect(mixed_parameters, when(i, is_equal_to(2)), when(s, is_equal_to_string("Goodbye")));
@@ -195,18 +193,18 @@ Ensure(breaking_multiple_parameters_multiple_times)
     mixed_parameters(20, "Gooodbye");
 }
 
-Ensure(uncalled_expectations_should_throw_errors) 
+Ensure(uncalled_expectations_should_throw_errors)
 {
     expect(mixed_parameters, when(i, is_equal_to(1)), when(s, is_equal_to_string("Hello")));
 }
 
-Ensure(unexpected_call_should_throw_error) 
+Ensure(unexpected_call_should_throw_error)
 {
     never_expect(mixed_parameters);
     mixed_parameters(10, "Helloo");
 }
 
-TestSuite *mock_tests() 
+TestSuite *mock_tests()
 {
     TestSuite *suite = create_test_suite();
     add_test(suite, expectation_confirmed);
@@ -222,7 +220,7 @@ Ensure(take_so_long_that_ctrl_c_is_needed) {
     sleep(10);
 }
 
-int main(int argc, char **argv) 
+int main(int argc, char **argv)
 {
     TestSuite *suite = create_test_suite();
     add_suite(suite, assertion_tests());
@@ -242,12 +240,12 @@ int main(int argc, char **argv)
 
 #else // SHOW_SAMPLE_PASS_AND_FAIL_TESTS_ONLY
 
-int main(int argc, char **argv) 
+int main(int argc, char **argv)
 {
     TestSuite *suite = create_test_suite();
     add_suite(suite, foo_suite());
     add_suite(suite, c_list_suite());
-    //add_suite(suite, gps_test_suite());
+    add_suite(suite, geo_gps_test_suite());
 
     return run_test_suite(suite, create_text_reporter());
 }
