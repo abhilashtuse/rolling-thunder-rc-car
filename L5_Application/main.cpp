@@ -62,7 +62,7 @@ int main(void)
     const bool run_1Khz = false;
     scheduler_add_task(new periodicSchedulerTask(run_1Khz));
     #endif
-
+    scheduler_add_task(new periodicSchedulerTask());
     /* The task for the IR receiver to "learn" IR codes */
     // scheduler_add_task(new remoteTask  (PRIORITY_LOW));
 
