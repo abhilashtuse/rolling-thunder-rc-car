@@ -7,16 +7,31 @@
 
 #ifndef GEO_GPS_H_
 #define GEO_GPS_H_
+#include <vector>
 #include <string>
+#include <sstream>
+#include <cassert>
+
+#define MINUTE_LENGTH 9 // Length of minutes data in NMEA
+
+using namespace std;
 
 class GeoGPS {
-    float latitude, longitude;
+    double latitude, longitude;
+    vector<string> splitStringByComma(string input);
+    double DegreesToDecimal(int degrees, double minutes);
+
 public:
-    float GetLongitude();
-    float GetLatitude();
-    void SetLongitude(float long_val);
-    void SetLatitude(float lat_val);
+    GeoGPS(): latitude(0), longitude(0) {}
+    double GetLongitude();
+    double GetLatitude();
+    void SetLongitude(double long_val);
+    void SetLatitude(double lat_val);
+    void SetValuesGGA(string GGA);
     void ParseGPSString(std::string gps_str);
+    double StringToDouble(string inputString);
+    double ExtractCoordinate(string raw_coordinate, bool is_lat);
+    bool IsValidGGA(const string GGASentence);
 };
 
 #endif /* GEO_GPS_H_ */
