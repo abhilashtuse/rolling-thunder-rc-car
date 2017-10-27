@@ -67,6 +67,12 @@ geo_gps.o: $(PROJ_DIR)/L5_Application/source/geo_gps.cpp
 test_geo_gps.o: $(UT_DIR)/test_geo_gps.cpp geo_gps.o
 	$(CXX) $(CGREEN_HEADERS) $(HEADER_DIR) $(CXXFLAGS) -c $(UT_DIR)/test_geo_gps.cpp $(LIBS)
 
+geo_compass.o: $(PROJ_DIR)/L5_Application/source/geo_compass.cpp
+	$(CXX) $(CGREEN_HEADERS) $(HEADER_DIR) $(CXXFLAGS) -c $(PROJ_DIR)L5_Application/source/geo_compass.cpp $(LIBS)
+
+test_geo_compass.o: $(UT_DIR)/test_geo_compass.cpp geo_compass.o
+	$(CXX) $(CGREEN_HEADERS) $(HEADER_DIR) $(CXXFLAGS) -c $(UT_DIR)/test_geo_compass.cpp $(LIBS)
+
 geo_controller.o: $(PROJ_DIR)/L5_Application/source/geo_controller.cpp
 	$(CXX) $(CGREEN_HEADERS) $(HEADER_DIR) $(CXXFLAGS) -c $(PROJ_DIR)L5_Application/source/geo_controller.cpp $(LIBS)
 
@@ -79,5 +85,5 @@ test_geo_controller.o: $(UT_DIR)/test_geo_controller.cpp geo_controller.o
 test_c_list.o: $(UT_DIR)/test_c_list.c $(HEADER_DIR) c_list.o
 	$(CXX) $(CGREEN_HEADERS) $(HEADER_DIR) $(CXXFLAGS) -c $(UT_DIR)/test_c_list.c $(LIBS)
 
-test_all: test_main.o c_list.o foo.o geo_gps.o geo_controller.o
+test_all: test_main.o c_list.o foo.o geo_gps.o geo_controller.o geo_compass.o
 	$(CXX) $(CGREEN_HEADERS) $(HEADER_DIR) $(CXXFLAGS) $^ -o $@ $(LIBS)

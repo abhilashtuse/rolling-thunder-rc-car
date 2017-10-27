@@ -89,6 +89,11 @@ void period_1Hz(uint32_t count)
 
 void period_10Hz(uint32_t count)
 {
+    /* Compass Read */
+    // uint8_t reg2 = I2C2::getInstance().readReg(0xc0, 0x2);
+    // uint8_t reg3 = I2C2::getInstance().readReg(0xc0, 0x3);
+    // double bearing_angle = geo_compass.CalculateBearingAngle(reg2, reg3);
+
     if (start_from_master) {
         GEO_DATA_t geo_cmd = { 0 };
         geo_cmd.GEO_bearing_angle = 20;
