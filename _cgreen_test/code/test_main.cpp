@@ -11,6 +11,7 @@ using namespace cgreen;
 #include "test_c_list.c"
 #include "test_foo.cpp"
 #include "test_geo_gps.cpp"
+#include "test_geo_controller.cpp"
 
 #define SHOW_SAMPLE_PASS_AND_FAIL_TESTS_ONLY         0
 
@@ -246,7 +247,7 @@ int main(int argc, char **argv)
     add_suite(suite, foo_suite());
     add_suite(suite, c_list_suite());
     add_suite(suite, geo_gps_test_suite());
-
+    add_suite(suite, geo_controller_test_suite());
     return run_test_suite(suite, create_text_reporter());
 }
 

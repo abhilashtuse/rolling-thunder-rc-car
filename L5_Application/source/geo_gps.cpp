@@ -82,6 +82,18 @@ void GeoGPS::ParseGPSString(string GGA)
     }
 }
 
+int GeoGPS::StringToInt(string inputString)
+{
+    //If string empty, return 0.
+    int returnValue = 0;
+    std::istringstream istr(inputString);
+
+    istr >> returnValue;
+
+    return (returnValue);
+
+}
+
 double GeoGPS::StringToDouble(string inputString)
 {
     //If string empty, return 0.
@@ -97,12 +109,12 @@ double GeoGPS::StringToDouble(string inputString)
 double GeoGPS::ExtractCoordinate(string raw_coordinate, bool is_lat)
 {
     double decimalDegrees = 0;
-    uint8_t degrees;
-    double minutes;
-    uint8_t degree_len = is_lat ? 2 : 3;
+    uint8_t degrees = 0;
+    double minutes = 0;
+    uint8_t degree_len = (is_lat == true) ? 2 : 3;
 
-    degrees = atoi(raw_coordinate.substr(0, degree_len).c_str());
-    minutes = atof(raw_coordinate.substr(degree_len, raw_coordinate.length() - degree_len).c_str());
+    degrees = StringToInt(raw_coordinate.substr(0, degree_len).c_str());
+    minutes = StringToDouble(raw_coordinate.substr(degree_len, raw_coordinate.length() - degree_len));
 
     // Convert degrees and minutes into decimal
     decimalDegrees = DegreesToDecimal(degrees, minutes);
