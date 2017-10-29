@@ -6,6 +6,21 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+/////////////////////////////////
+////          MY ZONE        ////
+/////////////////////////////////
+
+#define CAR_STOP 0x01
+#define CAR_START 0x02
+#define COORD_TURN_LEFT 0x03
+#define COORD_TURN_RIGHT 0x04
+#define COORD_REDUCE_SPEED 0x05
+#define COORD_ACCELERATE 0x06
+
+
+float decode_long(char *bytecode);
+float decode_lat(char *bytecode);
+////////////////////////////
 
 
 /// Extern function needed for dbc_encode_and_send()
