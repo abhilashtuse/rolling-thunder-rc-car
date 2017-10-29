@@ -33,12 +33,7 @@
 #include "io.hpp"
 #include "periodic_callback.h"
 #include "gpio.hpp"
-#include "can.h"
-#include <string.h>
-#include <math.h>
-#include <stdlib.h>
-#include "uart3.hpp"
-#include "rt.h"
+#include "genera_ted_can.h.h"
 /// This is the stack size used for each of the period tasks (1Hz, 10Hz, 100Hz, and 1000Hz)
 const uint32_t PERIOD_TASKS_STACK_SIZE_BYTES = (512 * 4);
 
@@ -51,35 +46,6 @@ const uint32_t PERIOD_TASKS_STACK_SIZE_BYTES = (512 * 4);
 const uint32_t PERIOD_DISPATCHER_TASK_STACK_SIZE_BYTES = (512 * 3);
 int flag = 0;
 
-// This method needs to be defined once, and AGC will call it for all dbc_encode_and_send_FOO() functions
-bool dbc_app_send_can_msg(uint32_t mid, uint8_t dlc, uint8_t bytes[8])
-{
-    can_msg_t can_msg = { 0 };
-    can_msg.msg_id                = mid;
-    can_msg.frame_fields.data_len = dlc;
-    memcpy(can_msg.data.bytes, bytes, dlc);
-
-    return CAN_tx(can1, &can_msg, 0);
-}
-
-void    start_car(float latitude, float longitude, int start)
-{
-    BRIDGE_START_STOP_t start_stop = {0};
-    start_stop.BRIDGE_START_STOP_cmd = start;
-    start_stop.BRIDGE_CHECKPOINT_latitude = latitude;
-    start_stop.BRIDGE_CHECKPOINT_longitude = longitude;
-    start_stop.BRIDGE_COORDINATE_READY = 1;
-    start_stop.BRIDGE_FINAL_COORDINATE = 1;
-
-    dbc_encode_and_send_BRIDGE_START_STOP(&start_stop);
-}
-
-void    bridge_heartbeat()
-{
-    BRIDGE_HB_t heartbeat = {0};
-    heartbeat.BRIDGE_heartbeat = 1;
-    dbc_encode_and_send_BRIDGE_HB(&heartbeat);
-}
 /// Called once before the RTOS is started, this is a good place to initialize things once
 bool period_init(void)
 {

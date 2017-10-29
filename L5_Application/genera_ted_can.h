@@ -10,6 +10,11 @@
 ////          MY ZONE        ////
 /////////////////////////////////
 
+#include "can.h"
+#include <string.h>
+#include <math.h>
+#include "uart3.hpp"
+
 #define CAR_STOP 0x01
 #define CAR_START 0x02
 #define COORD_TURN_LEFT 0x03
@@ -17,11 +22,12 @@
 #define COORD_REDUCE_SPEED 0x05
 #define COORD_ACCELERATE 0x06
 
-
 float decode_long(char *bytecode);
 float decode_lat(char *bytecode);
+bool dbc_app_send_can_msg(uint32_t mid, uint8_t dlc, uint8_t bytes[8]);
+void    start_car(float latitude, float longitude, int start);
+void    bridge_heartbeat();
 ////////////////////////////
-
 
 /// Extern function needed for dbc_encode_and_send()
 extern bool dbc_app_send_can_msg(uint32_t mid, uint8_t dlc, uint8_t bytes[8]);
