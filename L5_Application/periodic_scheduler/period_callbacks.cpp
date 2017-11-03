@@ -33,7 +33,7 @@
 #include "io.hpp"
 #include "periodic_callback.h"
 #include "gpio.hpp"
-#include "genera_ted_can.h.h"
+#include "rt.h"
 /// This is the stack size used for each of the period tasks (1Hz, 10Hz, 100Hz, and 1000Hz)
 const uint32_t PERIOD_TASKS_STACK_SIZE_BYTES = (512 * 4);
 
@@ -45,6 +45,28 @@ const uint32_t PERIOD_TASKS_STACK_SIZE_BYTES = (512 * 4);
  */
 const uint32_t PERIOD_DISPATCHER_TASK_STACK_SIZE_BYTES = (512 * 3);
 int flag = 0;
+char mail[20];
+bool dbc_app_send_can_msg(uint32_t mid, uint8_t dlc, uint8_t bytes[8])
+{
+    can_msg_t can_msg = { 0 };
+    can_msg.msg_id                = mid;
+    can_msg.frame_fields.data_len = dlc;
+    memcpy(can_msg.data.bytes, bytes, dlc);
+
+    return CAN_tx(can1, &can_msg, 0);
+}
+
+void    start_car(float latitude, float longitude, int start)
+{
+    BRIDGE_START_STOP_t start_stop = {0};
+    start_stop.BRIDGE_START_STOP_cmd = start;
+    start_stop.BRIDGE_CHECKPOINT_latitude = latitude;
+    start_stop.BRIDGE_CHECKPOINT_longitude = longitude;
+    start_stop.BRIDGE_COORDINATE_READY = 1;
+    start_stop.BRIDGE_FINAL_COORDINATE = 1;
+
+    dbc_encode_and_send_BRIDGE_START_STOP(&start_stop);
+}
 
 /// Called once before the RTOS is started, this is a good place to initialize things once
 bool period_init(void)
@@ -52,14 +74,14 @@ bool period_init(void)
 
     CAN_init(can1, 100, 20, 20, NULL, NULL);
     CAN_reset_bus(can1);
-
+    CAN_bypass_filter_accept_all_msgs();
     /*
      * Bluetooth Connection
-     * Baud rate of device used is 9600
+     * Baud rate of device used is 115200
      */
     Uart3 &u3 = Uart3::getInstance();
-	u3.init(9600);
-    // LS.init();
+	u3.init(115200);
+    // LS.init();./
     return true; // Must return true upon success
 }
 
@@ -78,48 +100,54 @@ void period_1Hz(uint32_t count)
 {
     if (CAN_is_bus_off(can1))
         CAN_reset_bus(can1);
-    bridge_heartbeat();
+    // bridge_heartbeat();
 }
 
 void period_10Hz(uint32_t count)
 {
-    static char *mail = NULL;    
+    
     if (flag==0){
-        mail = (char *)calloc(20,sizeof(char));
+       bzero(mail, 20);
     }
-        static float latitude = 0;
-        static float longitude = 0;
-        Uart3 &u3 = Uart3::getInstance();
-        char temp[2];
-        bool success = false;
-        success = u3.getChar(temp, 0);
-        if(success){
-            strcat(mail,temp);
-            LE.toggle(3);
-            flag+=1;
-        }
-        if (flag > 0 && !success)
-        {
-            mail[flag] = '\0';
-            printf("Full payload: %s\n", mail);
-            if (mail[0] - '0' == CAR_START){
-                mail = mail+1;
-                latitude = decode_lat(mail);
-                longitude = decode_long(mail);
-                start_car(latitude, longitude, 1);
-                printf("Car started.\n");
+    // static float latitude = 0;
+    // static float longitude = 0;
+    Uart3 &u3 = Uart3::getInstance();
+    char temp[2];
+    bool success = false;
+    success = u3.getChar(temp, 0);
+    LE.toggle(3);
+    if(success){
+        LE.toggle(1);
+        strcat(mail,temp);
+        flag+=1;
+    }
+    if (flag > 0 && !success)
+    {
+        mail[flag] = '\0';
+        printf("Full payload: %s\n", mail);
+        if (mail[0] == 'a'){
+            if (mail[1] == '0')
+            {
+                LE.toggle(2);
+                start_car(0,0,0);
+                LE.toggle(4,false);
             }
-            else if (mail[0] - '0' == CAR_STOP){
-                printf("Car Stopped\n");
-                start_car(0, 0, 0);
+            else
+            {
+                LE.toggle(4);
+                start_car(1,1,1);
+                LE.toggle(2, false);
             }
-
-            // COORD_TURN_LEFT 0x05
-            // COORD_TURN_RIGHT 0x06
-            // COORD_REDUCE_SPEED 0x07
-            flag = 0;
-            free(mail);
         }
+        // else if (mail[0] - '0' == CAR_STOP){
+        //     printf("Car Stopped\n");
+        //     start_car(0, 0, 0);
+        // }
+        // COORD_TURN_LEFT 0x05
+        // COORD_TURN_RIGHT 0x06
+        // COORD_REDUCE_SPEED 0x07
+        flag = 0;
+    }
 }
 
 void period_100Hz(uint32_t count)
