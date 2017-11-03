@@ -130,13 +130,11 @@ void period_10Hz(uint32_t count)
             {
                 LE.toggle(2);
                 start_car(0,0,0);
-                LE.toggle(4,false);
             }
             else
             {
                 LE.toggle(4);
                 start_car(1,1,1);
-                LE.toggle(2, false);
             }
         }
         // else if (mail[0] - '0' == CAR_STOP){
