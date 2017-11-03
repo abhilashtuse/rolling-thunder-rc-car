@@ -87,6 +87,17 @@ void period_1Hz(uint32_t count)
     }
 }
 
+// This method needs to be defined once, and AGC will call it for all dbc_encode_and_send_FOO() functions
+bool dbc_app_send_can_msg(uint32_t mid, uint8_t dlc, uint8_t bytes[8])
+{
+    can_msg_t can_msg = { 0 };
+    can_msg.msg_id                = mid;
+    can_msg.frame_fields.data_len = dlc;
+    memcpy(can_msg.data.bytes, bytes, dlc);
+
+    return CAN_tx(can1, &can_msg, 0);
+}
+
 void period_10Hz(uint32_t count)
 {
     /* Compass Read */
