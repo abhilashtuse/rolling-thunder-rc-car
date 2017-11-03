@@ -41,10 +41,8 @@ bool period_init(void)
     return true; // Must return true upon success
 }
 
- * The argument 'count' is the number of times each periodic task is called.
- */
-
 bool start_sent = false;
+BRIDGE_START_STOP_t bridge_data = {0};
 
 void period_1Hz(uint32_t count)
 {
@@ -55,9 +53,8 @@ void period_1Hz(uint32_t count)
         LE.toggle(1);
     }
     can_msg_t can_msg;
-    BRIDGE_START_STOP_t bridge_data = {0};
     MASTER_CONTROL_t start_cmd;
-    start_cmd.MASTER_CONTROL_cmd = DRIVER_HEARTBEAT_cmd_START;
+    start_cmd.MASTER_CONTROL_cmd = MASTER_cmd_START;
 
     if(start_sent == false)
     {
@@ -84,10 +81,15 @@ void period_1Hz(uint32_t count)
 
 void period_10Hz(uint32_t count)
 {
+
+}
+
+void period_100Hz(uint32_t count)
+{
     can_msg_t can_msg;
     SENSOR_DATA_t sensor_data;
     MOTOR_UPDATE_t motor_update;
-    motor_update.MOTOR_speed = 10;
+    motor_update.MOTOR_speed = 5;
     motor_update.MOTOR_turn_angle = 0;
 
     if(start_sent == true)
@@ -101,29 +103,41 @@ void period_10Hz(uint32_t count)
             can_msg_hdr.dlc = can_msg.frame_fields.data_len;
             can_msg_hdr.mid = can_msg.msg_id;
 
-            dbc_decode_SENSOR_DATA(&sensor_data, can_msg.data.bytes, &can_msg_hdr);
-
-            if(sensor_data.SENSOR_left_sensor > 1 && sensor_data.SENSOR_left_sensor < 10)
+            if(dbc_decode_SENSOR_DATA(&sensor_data, can_msg.data.bytes, &can_msg_hdr))
             {
-                motor_update.MOTOR_turn_angle = 30;
+                if(sensor_data.SENSOR_left_sensor > 1 && sensor_data.SENSOR_left_sensor < 15)
+                {
+                    motor_update.MOTOR_turn_angle = 30;
+                }
+                else if(sensor_data.SENSOR_right_sensor > 1 && sensor_data.SENSOR_right_sensor < 15)
+                {
+                    motor_update.MOTOR_turn_angle = -30;
+                }
+                else if(sensor_data.SENSOR_middle_sensor > 6 && sensor_data.SENSOR_middle_sensor < 15)
+                {
+                    motor_update.MOTOR_speed = 0;
+                    motor_update.MOTOR_turn_angle = 0;
+                }
+                else if(sensor_data.SENSOR_back_sensor > 6 && sensor_data.SENSOR_back_sensor < 15)
+                {
+                    motor_update.MOTOR_speed = 0;
+                    motor_update.MOTOR_turn_angle = 0;
+                }
+                dbc_encode_and_send_MOTOR_UPDATE(&motor_update);
             }
-            else if(sensor_data.SENSOR_right_sensor > 1 && sensor_data.SENSOR_right_sensor < 10)
+            else if(dbc_decode_BRIDGE_START_STOP(&bridge_data, can_msg.data.bytes, &can_msg_hdr))
             {
-                motor_update.MOTOR_turn_angle = -30;
+                if(bridge_data.BRIDGE_START_STOP_cmd == 0)
+                {
+                    LE.set(2, false);
+                    motor_update.MOTOR_speed = 0;
+                    motor_update.MOTOR_turn_angle = 0;
+                    dbc_encode_and_send_MOTOR_UPDATE(&motor_update);
+                    start_sent = false;
+                }
             }
-            else if(sensor_data.SENSOR_middle_sensor > 6 && sensor_data.SENSOR_middle_sensor < 15)
-            {
-                motor_update.MOTOR_speed = 0;
-                motor_update.MOTOR_turn_angle = 0;
-            }
-            dbc_encode_and_send_MOTOR_UPDATE(&motor_update);
         }
     }
-}
-
-void period_100Hz(uint32_t count)
-{
-    //LE.toggle(3);
 }
 
 // 1Khz (1ms) is only run if Periodic Dispatcher was configured to run it at main():
