@@ -30,10 +30,13 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <cstring>
+#include <string>
 #include "io.hpp"
 #include "periodic_callback.h"
 #include "can.h"
 #include "_can_dbc/generated_can.h"
+#include "uart3.hpp"
 
 
 /// This is the stack size used for each of the period tasks (1Hz, 10Hz, 100Hz, and 1000Hz)
@@ -48,9 +51,11 @@ const uint32_t PERIOD_TASKS_STACK_SIZE_BYTES = (512 * 4);
 const uint32_t PERIOD_MONITOR_TASK_STACK_SIZE_BYTES = (512 * 3);
 static bool start_from_master = false;
 
+static Uart3 &serialPort3 = Uart3::getInstance();
 /// Called once before the RTOS is started, this is a good place to initialize things once
 bool period_init(void)
 {
+    serialPort3.init(38400, 500, 0); /* Init baud rate */
     CAN_init(can1,100,10,10,NULL,NULL);
     CAN_bypass_filter_accept_all_msgs();
     CAN_reset_bus( can1);
@@ -116,6 +121,15 @@ void period_10Hz(uint32_t count)
             printf("\nsent");
         else
             printf("\ntx failed");
+    }
+    if (count % 2) {
+        char gps_str_arr[200];
+        bool result = serialPort3.gets(gps_str_arr, 200, 1);
+        std::string gps_str = gps_str_arr;
+        if (result && gps_str.find("$GPGGA") == 0) {
+            printf("Received: %s\n", gps_str_arr);
+            LE.toggle(3);
+        }
     }
 }
 
