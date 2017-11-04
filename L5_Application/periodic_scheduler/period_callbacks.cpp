@@ -32,12 +32,16 @@
 #include <stdio.h>
 #include <cstring>
 #include <string>
+#include <list>
 #include "io.hpp"
 #include "periodic_callback.h"
 #include "can.h"
 #include "_can_dbc/generated_can.h"
 #include "uart3.hpp"
+#include "geo_gps.h"
+#include "geo_controller.h"
 
+using namespace std;
 
 /// This is the stack size used for each of the period tasks (1Hz, 10Hz, 100Hz, and 1000Hz)
 const uint32_t PERIOD_TASKS_STACK_SIZE_BYTES = (512 * 4);
@@ -49,9 +53,11 @@ const uint32_t PERIOD_TASKS_STACK_SIZE_BYTES = (512 * 4);
  * printf inside these functions, you need about 1500 bytes minimum
  */
 const uint32_t PERIOD_MONITOR_TASK_STACK_SIZE_BYTES = (512 * 3);
-static bool start_from_master = false;
-
+static bool start_from_master = true;//false; done for testing
+static GeoGPS geo_gps;
+static GeoController geoController;
 static Uart3 &serialPort3 = Uart3::getInstance();
+
 /// Called once before the RTOS is started, this is a good place to initialize things once
 bool period_init(void)
 {
@@ -59,6 +65,7 @@ bool period_init(void)
     CAN_init(can1,100,10,10,NULL,NULL);
     CAN_bypass_filter_accept_all_msgs();
     CAN_reset_bus( can1);
+    geoController.setupdate_checkpoint_flag(true);
     return true; // Must return true upon success
 }
 
@@ -90,6 +97,13 @@ void period_1Hz(uint32_t count)
         else
             printf("\ntx failed");
     }
+    if (SW.getSwitch(1) && geoController.isupdate_checkpoint_flag() == false) {
+        list<double> lat = geoController.getcheckpoint_latitude();
+        list<double> longi = geoController.getcheckpoint_longitude();
+        std::list<double>::iterator lat_it=lat.begin();
+        for (std::list<double>::iterator long_it=lat.begin(); long_it != lat.end(); ++lat_it,++long_it)
+            printf("\nCheckpoints received: lat: %f long: %f", *lat_it, *long_it);
+    }
 }
 
 // This method needs to be defined once, and AGC will call it for all dbc_encode_and_send_FOO() functions
@@ -110,32 +124,46 @@ void period_10Hz(uint32_t count)
     // uint8_t reg3 = I2C2::getInstance().readReg(0xc0, 0x3);
     // double bearing_angle = geo_compass.CalculateBearingAngle(reg2, reg3);
 
-    if (start_from_master) {
-        GEO_DATA_t geo_cmd = { 0 };
-        geo_cmd.GEO_bearing_angle = 20;
-        geo_cmd.GEO_destination_reached = 0;
-        geo_cmd.GEO_distance_to_checkpoint = 100;
-
-        // Encode the CAN message's data bytes, get its header and set the CAN message's DLC and length
-        if (dbc_encode_and_send_GEO_DATA(&geo_cmd))
-            printf("\nsent");
-        else
-            printf("\ntx failed");
-    }
     if (count % 2) {
         char gps_str_arr[200];
         bool result = serialPort3.gets(gps_str_arr, 200, 1);
         std::string gps_str = gps_str_arr;
+        // double lat = 37.336057;//gps.GetLatitude();
+        //double longi = 121.336057;//gps.GetLongitude();
+        //UPDATE_CURRENT_LOCATION_t cur_location = { 0 };
+        //cur_location.UPDATE_calculated_latitude = lat;
+        // cur_location.UPDATE_calculated_longitude = longi;
+        // dbc_encode_and_send_UPDATE_CURRENT_LOCATION(&cur_location);
         if (result && gps_str.find("$GPGGA") == 0) {
-            printf("Received: %s\n", gps_str_arr);
-            LE.toggle(3);
+            //  printf("Received: %s\n", gps_str_arr);
+            geo_gps.ParseGPSString(gps_str);
+          //  double lat = geo_gps.GetLatitude();
+            //double longi = geo_gps.GetLongitude();
+            UPDATE_CURRENT_LOCATION_t cur_location = { 0 };
+            cur_location.UPDATE_calculated_latitude = geo_gps.GetLatitude();
+            cur_location.UPDATE_calculated_longitude = geo_gps.GetLongitude();
+            dbc_encode_and_send_UPDATE_CURRENT_LOCATION(&cur_location);
+         //   LE.toggle(3);
         }
+    }
+    if (start_from_master && geoController.isupdate_checkpoint_flag() == false) {
+        geoController.ManipulateCheckpointList(geo_gps);
+        GEO_DATA_t geo_cmd = { 0 };
+        geo_cmd.GEO_bearing_angle = geoController.CalculateBearingAngle(geo_gps);
+        geo_cmd.GEO_distance_to_checkpoint = geoController.CalculateDistance(geo_gps);
+        geo_cmd.GEO_destination_reached = geoController.isFinalDestinationReached(geo_cmd.GEO_distance_to_checkpoint) ? 1 : 0;
+
+        // Encode the CAN message's data bytes, get its header and set the CAN message's DLC and length
+        if (dbc_encode_and_send_GEO_DATA(&geo_cmd))
+            printf("\nsent to master: bearing_angle:%f distance:%f dest:%d", geo_cmd.GEO_bearing_angle, geo_cmd.GEO_distance_to_checkpoint, geo_cmd.GEO_destination_reached);
+        else
+            printf("\ntx failed");
     }
 }
 
 void period_100Hz(uint32_t count)
 {
-    can_msg_t can_msg = { 0 };
+    /*can_msg_t can_msg = { 0 };
     if (!start_from_master && CAN_rx(can1, &can_msg, 0))
     {
         MASTER_CONTROL_t master_can_msg;
@@ -151,7 +179,38 @@ void period_100Hz(uint32_t count)
             start_from_master = true;
             LE.set(1, true);
         }
+    }*/
+    static list<double> latitudeList;
+    static list<double> longitudeList;
+    can_msg_t can_msg = { 0 };
+
+    while (CAN_rx(can1, &can_msg, 0))
+    {
+        BRIDGE_START_STOP_t checkPoint;
+
+
+        // Form the message header from the metadata of the arriving message
+        dbc_msg_hdr_t can_msg_hdr;
+        can_msg_hdr.dlc = can_msg.frame_fields.data_len;
+        can_msg_hdr.mid = can_msg.msg_id;
+        if(can_msg_hdr.mid== 200)
+        {
+            dbc_decode_BRIDGE_START_STOP(&checkPoint, can_msg.data.bytes, &can_msg_hdr);
+            printf("\nCheckpoints received: lat: %f long: %f", checkPoint.BRIDGE_CHECKPOINT_latitude, checkPoint.BRIDGE_CHECKPOINT_longitude);
+            if(geoController.isupdate_checkpoint_flag()){
+                latitudeList.push_back(checkPoint.BRIDGE_CHECKPOINT_latitude);
+                longitudeList.push_back(checkPoint.BRIDGE_CHECKPOINT_longitude);
+            }
+
+            if(checkPoint.BRIDGE_FINAL_COORDINATE==1){
+                geoController.setupdate_checkpoint_flag(false);
+                geoController.setcheckpoint_latitude(latitudeList);
+                geoController.setcheckpoint_longitude(longitudeList);
+            }
+        }
+
     }
+
 }
 
 // 1Khz (1ms) is only run if Periodic Dispatcher was configured to run it at main():

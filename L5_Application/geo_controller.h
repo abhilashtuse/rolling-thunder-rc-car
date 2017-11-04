@@ -9,16 +9,56 @@
 #define GEO_CONTROLLER_H_
 
 #include <cmath>
+#include <list>
 #include "geo_gps.h"
 
 class GeoController {
+
+    bool updateCheckpointFlag;
+    list<double> checkpointLatitude;
+    list<double> checkpointLongitude;
+    const double distance_threshold = 0.7;
+
     double DegreeToRadian( double degree )
     {
         return ((degree * M_PI) / 180);
     }
 public:
-    double CalculateBearingAngle(double latitude, double longitude, GeoGPS geo_gps);
-    double CalculateDistance(double latitude, double longitude, GeoGPS geo_gps);
+
+    bool ManipulateCheckpointList(GeoGPS geo_gps);
+    bool isFinalDestinationReached(double distance);
+    double CalculateBearingAngle(GeoGPS geo_gps);
+    double CalculateDistance(GeoGPS geo_gps);
+
+    const list<double>& getcheckpoint_latitude() const
+    {
+        return checkpointLatitude;
+    }
+
+    void setcheckpoint_latitude(const list<double>& checkpoint_latitude)
+    {
+        checkpointLatitude = checkpoint_latitude;
+    }
+
+    const list<double>& getcheckpoint_longitude() const
+    {
+        return checkpointLongitude;
+    }
+
+    void setcheckpoint_longitude(const list<double>& checkpoint_longitude)
+    {
+        checkpointLongitude = checkpoint_longitude;
+    }
+
+    bool isupdate_checkpoint_flag() const
+    {
+        return updateCheckpointFlag;
+    }
+
+    void setupdate_checkpoint_flag(bool update_checkpoint_flag= true)
+    {
+        updateCheckpointFlag = update_checkpoint_flag;
+    }
 };
 
 #endif /* GEO_CONTROLLER_H_ */
