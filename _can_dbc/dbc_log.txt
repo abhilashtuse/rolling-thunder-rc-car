@@ -4,3 +4,8 @@ Date: 10/28/2017
  - Changed the name of the master control command enums
  - Added an enum for node heartbeats ( stopped, ready, running ). All 4 nodes should use this enum while sending heartbeat.
  - Changed the message ID of Bridge heartbeat from 450 to 500.
+
+ Date: 11/5/2017
+
+ - Interchanged the message id of SENSOR_DATA with BRIDGE_START_STOP
+ - Removed the element bridge coordinate ready from BRIDGE_START_STOP message.
