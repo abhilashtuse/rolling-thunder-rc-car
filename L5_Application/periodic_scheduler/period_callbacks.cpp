@@ -5,12 +5,37 @@
 #include "can.h"
 #include "_can_dbc/generated_can.h"
 
+#define front_threshold   50
+#define left_threshold    20
+#define right_threshold   20
+#define back_threshold    30
+
+/// This is the stack size used for each of the period tasks (1Hz, 10Hz, 100Hz, and 1000Hz)
+const uint32_t PERIOD_TASKS_STACK_SIZE_BYTES = (512 * 4);
+
+/**
+ * This is the stack size of the dispatcher task that triggers the period tasks to run.
+ * Minimum 1500 bytes are needed in order to write a debug file if the period tasks overrun.
+ * This stack size is also used while calling the period_init() and period_reg_tlm(), and if you use
+ * printf inside these functions, you need about 1500 bytes minimum
+ */
+const uint32_t PERIOD_MONITOR_TASK_STACK_SIZE_BYTES = (512 * 3);
+
+/// Register any telemetry variables
+bool period_reg_tlm(void)
+{
+    // Make sure "SYS_CFG_ENABLE_TLM" is enabled at sys_config.h to use Telemetry
+    return true; // Must return true upon success
+}
+
 bool restart_can = false;
 
 void busoff_callback(uint32_t register_value)
 {
     (void) register_value;
     restart_can = true;
+    CAN_reset_bus(can1);
+    LE.toggle(1);
 }
 
 void dataovr_callback(uint32_t register_value)
@@ -46,12 +71,6 @@ BRIDGE_START_STOP_t bridge_data = {0};
 
 void period_1Hz(uint32_t count)
 {
-    if(restart_can == true)
-    {
-        restart_can = false;
-        CAN_reset_bus(can1);
-        LE.toggle(1);
-    }
     can_msg_t can_msg;
     MASTER_CONTROL_t start_cmd;
     start_cmd.MASTER_CONTROL_cmd = MASTER_cmd_START;
@@ -66,30 +85,24 @@ void period_1Hz(uint32_t count)
             can_msg_hdr.mid = can_msg.msg_id;
 
             // Attempt to decode the message
-            dbc_decode_BRIDGE_START_STOP(&bridge_data, can_msg.data.bytes, &can_msg_hdr);
-
-            if(bridge_data.BRIDGE_START_STOP_cmd == 1)
+            if(dbc_decode_BRIDGE_START_STOP(&bridge_data, can_msg.data.bytes, &can_msg_hdr))
             {
-                LE.set(2, true);
-                dbc_encode_and_send_MASTER_CONTROL(&start_cmd);
-                start_sent = true;
+                if(bridge_data.BRIDGE_START_STOP_cmd == 1)
+                {
+                    LE.set(2, true);
+                    dbc_encode_and_send_MASTER_CONTROL(&start_cmd);
+                    start_sent = true;
+                }
             }
         }
     }
-    LE.toggle(1);
 }
 
 void period_10Hz(uint32_t count)
 {
-
-}
-
-void period_100Hz(uint32_t count)
-{
     can_msg_t can_msg;
     SENSOR_DATA_t sensor_data;
     MOTOR_UPDATE_t motor_update;
-    motor_update.MOTOR_speed = 5;
     motor_update.MOTOR_turn_angle = 0;
 
     if(start_sent == true)
@@ -102,30 +115,8 @@ void period_100Hz(uint32_t count)
             dbc_msg_hdr_t can_msg_hdr;
             can_msg_hdr.dlc = can_msg.frame_fields.data_len;
             can_msg_hdr.mid = can_msg.msg_id;
-
-            if(dbc_decode_SENSOR_DATA(&sensor_data, can_msg.data.bytes, &can_msg_hdr))
-            {
-                if(sensor_data.SENSOR_left_sensor > 1 && sensor_data.SENSOR_left_sensor < 15)
-                {
-                    motor_update.MOTOR_turn_angle = 30;
-                }
-                else if(sensor_data.SENSOR_right_sensor > 1 && sensor_data.SENSOR_right_sensor < 15)
-                {
-                    motor_update.MOTOR_turn_angle = -30;
-                }
-                else if(sensor_data.SENSOR_middle_sensor > 6 && sensor_data.SENSOR_middle_sensor < 15)
-                {
-                    motor_update.MOTOR_speed = 0;
-                    motor_update.MOTOR_turn_angle = 0;
-                }
-                else if(sensor_data.SENSOR_back_sensor > 6 && sensor_data.SENSOR_back_sensor < 15)
-                {
-                    motor_update.MOTOR_speed = 0;
-                    motor_update.MOTOR_turn_angle = 0;
-                }
-                dbc_encode_and_send_MOTOR_UPDATE(&motor_update);
-            }
-            else if(dbc_decode_BRIDGE_START_STOP(&bridge_data, can_msg.data.bytes, &can_msg_hdr))
+			
+			if(dbc_decode_BRIDGE_START_STOP(&bridge_data, can_msg.data.bytes, &can_msg_hdr))
             {
                 if(bridge_data.BRIDGE_START_STOP_cmd == 0)
                 {
@@ -136,8 +127,96 @@ void period_100Hz(uint32_t count)
                     start_sent = false;
                 }
             }
+			else if(dbc_decode_SENSOR_DATA(&sensor_data, can_msg.data.bytes, &can_msg_hdr))
+            {
+/*                if(sensor_data.SENSOR_middle_sensor < 30)
+                {
+                    if(sensor_data.SENSOR_right_sensor > sensor_data.SENSOR_left_sensor)
+                    {
+                        motor_update.MOTOR_turn_angle = 30;
+                    }
+                    else
+                        motor_update.MOTOR_turn_angle = -30;
+                }
+                else if(sensor_data.SENSOR_right_sensor < 30)
+                {
+                    if(sensor_data.SENSOR_middle_sensor > sensor_data.SENSOR_left_sensor)
+                    {
+                        motor_update.MOTOR_turn_angle = -15;
+                    }
+                    else
+                        motor_update.MOTOR_turn_angle = -30;
+                }
+                else if(sensor_data.SENSOR_left_sensor < 30)
+                {
+                    if(sensor_data.SENSOR_middle_sensor > sensor_data.SENSOR_right_sensor)
+                    {
+                        motor_update.MOTOR_turn_angle = 15;
+                    }
+                    else
+                        motor_update.MOTOR_turn_angle = 30;
+                }*/
+
+				if(sensor_data.SENSOR_middle_sensor <= 30)
+				{
+					motor_update.MOTOR_speed = -4;
+					motor_update.MOTOR_turn_angle = 0;
+				}
+				else if((sensor_data.SENSOR_middle_sensor <= front_threshold && sensor_data.SENSOR_left_sensor <= left_threshold && sensor_data.SENSOR_right_sensor <= right_threshold && sensor_data.SENSOR_back_sensor >= back_threshold))
+				{
+					motor_update.MOTOR_speed = 0;
+					motor_update.MOTOR_turn_angle = 0;
+				}
+				else if((sensor_data.SENSOR_middle_sensor < front_threshold) || (sensor_data.SENSOR_left_sensor < left_threshold) || (sensor_data.SENSOR_right_sensor < right_threshold))
+				{
+					if((sensor_data.SENSOR_right_sensor >= sensor_data.SENSOR_left_sensor) && (sensor_data.SENSOR_right_sensor >= right_threshold))
+					{
+						// Take right
+						motor_update.MOTOR_speed = 5;
+						motor_update.MOTOR_turn_angle = 30;
+					}
+					else if((sensor_data.SENSOR_left_sensor > sensor_data.SENSOR_right_sensor) && (sensor_data.SENSOR_left_sensor >= left_threshold))
+					{
+						// Take left
+						motor_update.MOTOR_speed = 5;
+						motor_update.MOTOR_turn_angle = -30;
+					}
+					else if( (sensor_data.SENSOR_right_sensor < right_threshold) && (sensor_data.SENSOR_left_sensor < left_threshold))
+					{
+						// Stop or take reverse
+						motor_update.MOTOR_speed = 0;
+						motor_update.MOTOR_turn_angle = 0;
+					}
+
+				}
+				// Stationary and approaching body detected by back sensor - move forward
+				else if((sensor_data.SENSOR_back_sensor < back_threshold) && (motor_update.MOTOR_speed == 0) )
+				{
+					motor_update.MOTOR_speed = 5;
+					motor_update.MOTOR_turn_angle = 0;
+				}
+				// Stationary and approaching body detected by front/left/right sensors - move in reverse direction
+				else if(((sensor_data.SENSOR_middle_sensor < front_threshold) || (sensor_data.SENSOR_left_sensor < left_threshold) || (sensor_data.SENSOR_right_sensor < right_threshold)) && (motor_update.MOTOR_speed == 0))
+				{
+					motor_update.MOTOR_speed = -5;
+					motor_update.MOTOR_turn_angle = 0;
+				}
+				// Path clear upto 80 in front and 50 in on sides - speed up
+				else if((sensor_data.SENSOR_middle_sensor > front_threshold) && (sensor_data.SENSOR_left_sensor > left_threshold) && (sensor_data.SENSOR_right_sensor > right_threshold))
+				{
+					motor_update.MOTOR_speed = 5;
+					motor_update.MOTOR_turn_angle = 0;
+				}
+
+                dbc_encode_and_send_MOTOR_UPDATE(&motor_update);
+            }
         }
     }
+}
+
+void period_100Hz(uint32_t count)
+{
+
 }
 
 // 1Khz (1ms) is only run if Periodic Dispatcher was configured to run it at main():
