@@ -105,38 +105,6 @@ void period_1Hz(uint32_t count)
 	}
 
 
-
-	//stop_car();
-//	if (count == 5)
-//	{
-//		printf("go backward\n");
-//		//set_speed(-25);
-//		set_angle(-8);
-//	}
-//	if (count == 10)
-//	{
-//		printf("reset\n");
-//		stop_car();
-//	}
-//	if (count == 15)
-//	{
-//		printf("go foward\n");
-//		//set_speed(15);
-//		set_angle(8);
-//	}
-//	if (count == 20)
-//	{
-//		stop_car();
-//	}
-//	if (count == 25)
-//	{
-//		set_speed(-15);
-//	}
-//	if (count == 30)
-//	{
-//		stop_car();
-//	}
-
 }
 
 void period_10Hz(uint32_t count)
