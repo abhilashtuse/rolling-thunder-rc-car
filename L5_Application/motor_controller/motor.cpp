@@ -2,9 +2,9 @@
  * 	This file contains motor controller functions for the Traxxas RC car.
  *  Control is provided for the motor driver and servo motor (left/right).
  *
- * TBD: Go forward/reverse by distance
- * 		Take in angle required for turning left/right
- * 		Use singleton instance to access PWM
+ * TBD: Use singleton instance to access PWM
+ *      Speed feedback loop to find the current speed in metres per second
+ *      
  */
 #include "lpc_pwm.hpp"
 #include "LPC17xx.h"
@@ -45,7 +45,6 @@ PWM * get_servo_pwm(PWM::pwmType pwm)
 
 //Set speed based on input speed -70 to 70 MPH
 //Duty cycle will be 10% to 20%, so set speed accordingly
-//TBD: handle reverse speed in steps
 //Return: 1 if stepping required, 0 if done setting speed
 bool set_speed(float speed)
 {
@@ -72,11 +71,8 @@ bool set_speed(float speed)
 		}
 		MOTOR->set(speed_to_set);
 		printf("set motor to %f, duty cycle %f\n", speed, 15.0 + speed*duty_delta);
-	} else {
-		speed = 0;
-		//ERROR: How did we reach this condition?
 	}
-	return 0;
+	return 1;
 }
 
 //Angle can be between 30 & -30 degrees
