@@ -73,11 +73,11 @@ void period_1Hz(uint32_t count)
 {
     can_msg_t can_msg;
     MASTER_CONTROL_t start_cmd;
-    start_cmd.MASTER_CONTROL_cmd = MASTER_cmd_START;
+    start_cmd.MASTER_CONTROL_cmd = DRIVER_HEARTBEAT_cmd_START;
 
     if(start_sent == false)
     {
-        if(CAN_rx(can1, &can_msg, 0))
+        while(CAN_rx(can1, &can_msg, 0))
         {
             // Form the message header from the metadata of the arriving message
             dbc_msg_hdr_t can_msg_hdr;
@@ -103,11 +103,10 @@ void period_10Hz(uint32_t count)
     can_msg_t can_msg;
     SENSOR_DATA_t sensor_data;
     MOTOR_UPDATE_t motor_update;
-    motor_update.MOTOR_turn_angle = 0;
 
     if(start_sent == true)
     {
-        if(CAN_rx(can1, &can_msg, 0))
+        while(CAN_rx(can1, &can_msg, 0))
         {
             LE.toggle(3);
 
@@ -120,11 +119,12 @@ void period_10Hz(uint32_t count)
             {
                 if(bridge_data.BRIDGE_START_STOP_cmd == 0)
                 {
+                    start_sent = false;
                     LE.set(2, false);
                     motor_update.MOTOR_speed = 0;
                     motor_update.MOTOR_turn_angle = 0;
                     dbc_encode_and_send_MOTOR_UPDATE(&motor_update);
-                    start_sent = false;
+                    break;
                 }
             }
 			else if(dbc_decode_SENSOR_DATA(&sensor_data, can_msg.data.bytes, &can_msg_hdr))
@@ -157,9 +157,9 @@ void period_10Hz(uint32_t count)
                         motor_update.MOTOR_turn_angle = 30;
                 }*/
 
-				if(sensor_data.SENSOR_middle_sensor <= 30)
+				if(sensor_data.SENSOR_middle_sensor <= 18)
 				{
-					motor_update.MOTOR_speed = -4;
+					motor_update.MOTOR_speed = -5;
 					motor_update.MOTOR_turn_angle = 0;
 				}
 				else if((sensor_data.SENSOR_middle_sensor <= front_threshold && sensor_data.SENSOR_left_sensor <= left_threshold && sensor_data.SENSOR_right_sensor <= right_threshold && sensor_data.SENSOR_back_sensor >= back_threshold))
@@ -172,19 +172,19 @@ void period_10Hz(uint32_t count)
 					if((sensor_data.SENSOR_right_sensor >= sensor_data.SENSOR_left_sensor) && (sensor_data.SENSOR_right_sensor >= right_threshold))
 					{
 						// Take right
-						motor_update.MOTOR_speed = 5;
-						motor_update.MOTOR_turn_angle = 30;
+						motor_update.MOTOR_speed = 6;
+						motor_update.MOTOR_turn_angle = 15;
 					}
 					else if((sensor_data.SENSOR_left_sensor > sensor_data.SENSOR_right_sensor) && (sensor_data.SENSOR_left_sensor >= left_threshold))
 					{
 						// Take left
-						motor_update.MOTOR_speed = 5;
-						motor_update.MOTOR_turn_angle = -30;
+						motor_update.MOTOR_speed = 6;
+						motor_update.MOTOR_turn_angle = -15;
 					}
 					else if( (sensor_data.SENSOR_right_sensor < right_threshold) && (sensor_data.SENSOR_left_sensor < left_threshold))
 					{
-						// Stop or take reverse
-						motor_update.MOTOR_speed = 0;
+						// Slow down
+						motor_update.MOTOR_speed = 4.0;
 						motor_update.MOTOR_turn_angle = 0;
 					}
 
@@ -192,7 +192,7 @@ void period_10Hz(uint32_t count)
 				// Stationary and approaching body detected by back sensor - move forward
 				else if((sensor_data.SENSOR_back_sensor < back_threshold) && (motor_update.MOTOR_speed == 0) )
 				{
-					motor_update.MOTOR_speed = 5;
+					motor_update.MOTOR_speed = 6;
 					motor_update.MOTOR_turn_angle = 0;
 				}
 				// Stationary and approaching body detected by front/left/right sensors - move in reverse direction
@@ -204,7 +204,7 @@ void period_10Hz(uint32_t count)
 				// Path clear upto 80 in front and 50 in on sides - speed up
 				else if((sensor_data.SENSOR_middle_sensor > front_threshold) && (sensor_data.SENSOR_left_sensor > left_threshold) && (sensor_data.SENSOR_right_sensor > right_threshold))
 				{
-					motor_update.MOTOR_speed = 5;
+					motor_update.MOTOR_speed = 6;
 					motor_update.MOTOR_turn_angle = 0;
 				}
 
