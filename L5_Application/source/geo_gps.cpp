@@ -106,6 +106,14 @@ double GeoGPS::StringToDouble(string inputString)
 
 }
 
+string GeoGPS::DoubleToString(double val)
+{
+    ostringstream strs;
+    strs << val;
+    string str = strs.str();
+    return str;
+}
+
 double GeoGPS::ExtractCoordinate(string raw_coordinate, bool is_lat)
 {
     double decimalDegrees = 0;

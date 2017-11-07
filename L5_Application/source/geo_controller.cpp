@@ -6,6 +6,7 @@
  */
 
 #include <iostream>
+#include <stdio.h>
 #include "geo_controller.h"
 
 bool GeoController::isFinalDestinationReached(double distance) {
@@ -18,8 +19,10 @@ bool GeoController::ManipulateCheckpointList(GeoGPS geo_gps)
 {
     double distance = CalculateDistance(geo_gps);
     if (distance <= distance_threshold && checkpointLatitude.size() > 1 && checkpointLongitude.size() > 1) {
+        printf("\n ManipulateCheckpointList before: %f %f",checkpointLatitude.front(),checkpointLongitude.front());
         checkpointLatitude.pop_front();
         checkpointLongitude.pop_front();
+        printf("\n ManipulateCheckpointList after: %f %f",checkpointLatitude.front(),checkpointLongitude.front());
         return true;
     }
     return false;
@@ -32,14 +35,14 @@ bool GeoController::ManipulateCheckpointList(GeoGPS geo_gps)
              φ2,λ2 the end point
              Δλ is the difference in longitude
  *
- *
+ * For two same lat and long this function returns 1.57 degree bearing angle.
  * */
 
 double GeoController::CalculateBearingAngle(GeoGPS geo_gps)
 {
     //printf("\n1:lat:%f long:%f\n", geo_gps.GetLatitude(), geo_gps.GetLongitude());
     //printf("\n2:lat:%f long:%f\n", latitude, longitude);
-
+    printf("\nBefore:lat:%f long:%f\n", checkpointLatitude.front(), checkpointLongitude.front());
     double latitude = DegreeToRadian(checkpointLatitude.front());
     double longitude = DegreeToRadian(checkpointLongitude.front());
     double gps_latitude = DegreeToRadian(geo_gps.GetLatitude());
@@ -62,11 +65,21 @@ double GeoController::CalculateBearingAngle(GeoGPS geo_gps)
        λ is longitude,
        R is earth’s radius (mean radius = 6,371km),
 
- Note: Angles need to be in radians to pass to trignometric functions*/
+ Note: Angles need to be in radians to pass to trignometric functions
+* For two same lat and long this function returns 0.02 meter distance. */
 double GeoController::CalculateDistance(GeoGPS geo_gps)
 {
     //printf("\n1:lat:%f long:%f\n", geo_gps.GetLatitude(), geo_gps.GetLongitude());
     //printf("\n2:lat:%f long:%f\n", latitude, longitude);
+  //  printf("\nBefore:lat:%f long:%f\n", checkpointLatitude.front(), checkpointLongitude.front());
+    string ch_lat = geo_gps.DoubleToString(checkpointLatitude.front());
+    string ch_long = geo_gps.DoubleToString(checkpointLongitude.front());
+    double d_lat = geo_gps.StringToDouble(ch_lat);
+    double d_long = geo_gps.StringToDouble(ch_long);
+    //printf("\nAfter:lat:%f long:%f\n", d_lat, d_long);
+
+ //   double latitude = DegreeToRadian(d_lat);
+   // double longitude = DegreeToRadian(d_long);
     double latitude = DegreeToRadian(checkpointLatitude.front());
     double longitude = DegreeToRadian(checkpointLongitude.front());
 
