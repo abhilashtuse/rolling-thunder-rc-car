@@ -66,20 +66,20 @@ double GeoController::CalculateBearingAngle(GeoGPS geo_gps)
        R is earth’s radius (mean radius = 6,371km),
 
  Note: Angles need to be in radians to pass to trignometric functions
-* For two same lat and long this function returns 0.02 meter distance. */
+ * For two same lat and long this function returns 0.02 meter distance. */
 double GeoController::CalculateDistance(GeoGPS geo_gps)
 {
     //printf("\n1:lat:%f long:%f\n", geo_gps.GetLatitude(), geo_gps.GetLongitude());
     //printf("\n2:lat:%f long:%f\n", latitude, longitude);
-  //  printf("\nBefore:lat:%f long:%f\n", checkpointLatitude.front(), checkpointLongitude.front());
+    //  printf("\nBefore:lat:%f long:%f\n", checkpointLatitude.front(), checkpointLongitude.front());
     string ch_lat = geo_gps.DoubleToString(checkpointLatitude.front());
     string ch_long = geo_gps.DoubleToString(checkpointLongitude.front());
     double d_lat = geo_gps.StringToDouble(ch_lat);
     double d_long = geo_gps.StringToDouble(ch_long);
     //printf("\nAfter:lat:%f long:%f\n", d_lat, d_long);
 
- //   double latitude = DegreeToRadian(d_lat);
-   // double longitude = DegreeToRadian(d_long);
+    //   double latitude = DegreeToRadian(d_lat);
+    // double longitude = DegreeToRadian(d_long);
     double latitude = DegreeToRadian(checkpointLatitude.front());
     double longitude = DegreeToRadian(checkpointLongitude.front());
 

@@ -81,34 +81,34 @@ bool period_reg_tlm(void)
 void compass_calibration()
 {
     static int cm_count = 0;
-       if (SW.getSwitch(1) || (cm_count > 0 && cm_count < 9)) // switch to calibration mode
-       {
-           /* enter the calibration mode by sending a 3 byte sequence of 0xF0,0xF5 and then 0xF6
-            * to the command register, these MUST be sent in 3 separate I2C frames, you cannot send
-            * them all at once. There MUST be a minimum of 20ms between each I2C frame */
-           cm_count++;
-           if (cm_count == 1) {
-               //printf("\n count: %d cm_count: %d", count, cm_count);
-               I2C2::getInstance().writeReg(0xc0, 0x0, 0xF0);
-           }
-           else if (cm_count == 4) {
-               //printf("\n count: %d cm_count: %d", count, cm_count);
-               I2C2::getInstance().writeReg(0xc0, 0x0, 0xF5);
-           }
-           else if (cm_count == 7) {
-               //printf("\n count: %d cm_count: %d", count, cm_count);
-               I2C2::getInstance().writeReg(0xc0, 0x0, 0xF6);
-               LE.set(1, true);
-           }
-           //printf("\n cm_count: %d", cm_count);
-       }
-       if (SW.getSwitch(2) && cm_count > 7) //Come out from calibration mode
-       {
-           //printf("\n count: %d cm_count: %d", count, cm_count);
-           I2C2::getInstance().writeReg(0xc0, 0x0, 0xF8);
-           cm_count = 0;
-           LE.set(1, false);
-       }
+    if (SW.getSwitch(1) || (cm_count > 0 && cm_count < 9)) // switch to calibration mode
+    {
+        /* enter the calibration mode by sending a 3 byte sequence of 0xF0,0xF5 and then 0xF6
+         * to the command register, these MUST be sent in 3 separate I2C frames, you cannot send
+         * them all at once. There MUST be a minimum of 20ms between each I2C frame */
+        cm_count++;
+        if (cm_count == 1) {
+            //printf("\n count: %d cm_count: %d", count, cm_count);
+            I2C2::getInstance().writeReg(0xc0, 0x0, 0xF0);
+        }
+        else if (cm_count == 4) {
+            //printf("\n count: %d cm_count: %d", count, cm_count);
+            I2C2::getInstance().writeReg(0xc0, 0x0, 0xF5);
+        }
+        else if (cm_count == 7) {
+            //printf("\n count: %d cm_count: %d", count, cm_count);
+            I2C2::getInstance().writeReg(0xc0, 0x0, 0xF6);
+            LE.set(1, true);
+        }
+        //printf("\n cm_count: %d", cm_count);
+    }
+    if (SW.getSwitch(2) && cm_count > 7) //Come out from calibration mode
+    {
+        //printf("\n count: %d cm_count: %d", count, cm_count);
+        I2C2::getInstance().writeReg(0xc0, 0x0, 0xF8);
+        cm_count = 0;
+        LE.set(1, false);
+    }
 }
 
 /**
@@ -127,10 +127,10 @@ void period_1Hz(uint32_t count)
         geo_hb_cmd.GEO_heartbeat = 1;
         // Encode the CAN message's data bytes, get its header and set the CAN message's DLC and length
         dbc_encode_and_send_GEO_HB(&geo_hb_cmd);
-//        if (dbc_encode_and_send_GEO_HB(&geo_hb_cmd))
-//            printf("\nsent hb");
-//        else
-//            printf("\ntx failed");
+        //        if (dbc_encode_and_send_GEO_HB(&geo_hb_cmd))
+        //            printf("\nsent hb");
+        //        else
+        //            printf("\ntx failed");
     }
     if (SW.getSwitch(1) && geoController.isupdate_checkpoint_flag() == false) {
         list<double> lat = geoController.getcheckpoint_latitude();
@@ -148,12 +148,12 @@ void period_1Hz(uint32_t count)
 
         // Encode the CAN message's data bytes, get its header and set the CAN message's DLC and length
         if (dbc_encode_and_send_GEO_DATA(&geo_cmd)){
-         LD.setNumber(geo_cmd.GEO_distance_to_checkpoint);
-        // printf("\nsent to master: bearing_angle:%f distance:%f dest:%d", geo_cmd.GEO_bearing_angle, geo_cmd.GEO_distance_to_checkpoint, geo_cmd.GEO_destination_reached);
+            LD.setNumber(geo_cmd.GEO_distance_to_checkpoint);
+            // printf("\nsent to master: bearing_angle:%f distance:%f dest:%d", geo_cmd.GEO_bearing_angle, geo_cmd.GEO_distance_to_checkpoint, geo_cmd.GEO_destination_reached);
         }
         else {
             LE.toggle(4);
-        printf("\ntx failed");
+            printf("\ntx failed");
         }
     }
 }
@@ -172,9 +172,9 @@ bool dbc_app_send_can_msg(uint32_t mid, uint8_t dlc, uint8_t bytes[8])
 void period_10Hz(uint32_t count)
 {
     /* Compass Read */
-     uint8_t reg2 = I2C2::getInstance().readReg(0xc0, 0x2);
-     uint8_t reg3 = I2C2::getInstance().readReg(0xc0, 0x3);
-     compass_bearing_angle = geo_compass.CalculateBearingAngle(reg2, reg3);
+    uint8_t reg2 = I2C2::getInstance().readReg(0xc0, 0x2);
+    uint8_t reg3 = I2C2::getInstance().readReg(0xc0, 0x3);
+    compass_bearing_angle = geo_compass.CalculateBearingAngle(reg2, reg3);
 
     if (count % 2) {
         char gps_str_arr[200];
@@ -197,7 +197,7 @@ void period_10Hz(uint32_t count)
             cur_location.UPDATE_calculated_latitude = geo_gps.GetLatitude();
             cur_location.UPDATE_calculated_longitude = geo_gps.GetLongitude();
             dbc_encode_and_send_UPDATE_CURRENT_LOCATION(&cur_location);
-         //   printf("Lat")
+            //   printf("Lat")
             //   LE.toggle(3);
         }
 

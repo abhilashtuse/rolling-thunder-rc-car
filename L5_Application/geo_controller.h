@@ -31,9 +31,9 @@ public:
     double CalculateDistance(GeoGPS geo_gps);
 
     const list<double>& getcheckpoint_latitude() const
-    {
+            {
         return checkpointLatitude;
-    }
+            }
 
     void setcheckpoint_latitude(const list<double>& checkpoint_latitude)
     {
@@ -41,9 +41,9 @@ public:
     }
 
     const list<double>& getcheckpoint_longitude() const
-    {
+            {
         return checkpointLongitude;
-    }
+            }
 
     void setcheckpoint_longitude(const list<double>& checkpoint_longitude)
     {
