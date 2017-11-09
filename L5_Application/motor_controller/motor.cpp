@@ -3,283 +3,345 @@
  *  Control is provided for the motor driver and servo motor (left/right).
  *
  * TBD: Go forward/reverse by distance
- * 		Take in angle required for turning left/right
- * 		Use singleton instance to access PWM
+ *      Speed feedback test with speed_attained function
  */
-#include "lpc_pwm.hpp"
-#include "LPC17xx.h"
-#include "sys_config.h"
-#include "stdio.h"
+
 #include "motor.hpp"
-#include "_can_dbc/generated_can.h"
-#include "can.h"
-#include "string.h"
-#include "io.hpp"
-#include "lpc_sys.h"
 
-//Global variables for motor control
-PWM * MOTOR;
-PWM * SERVO;
-int mps_count;
-float cur_speed;
-bool system_started;
+#define speed_margin 0.05
+#define speed_step 0.25 //speed increment step for check_speed
 
-//Default initialize motor/steer pwm at 100 Hz
-//Initialize the desired PWM
-//These functions allow instance ofs PWM to be accessed
-PWM * get_motor_pwm(PWM::pwmType pwm)
+#define DIA_m 0.2 //0.05588 //in meters = 2.2 inches
+
+#define DIA_m_mul_PI (DIA_m * 3.14159265359)
+#define CIRCUMFERENCE 0.175552197 * (DIA_m/0.05588) //DIA_m_mul_PI metres
+
+#define Traxxas_Max_Speed 33.528 //mps
+#define duty_factor (5.0/Traxxas_Max_Speed) //required pwm for 1ms => 15.0 +/- (1ms * duty_factor)
+#define neutral_pwm 15.0
+
+Motor::Motor()
 {
-	static PWM motor(PWM::pwm2, 100);
-	motor.set(15.0);
-	MOTOR = &motor;
-	return &motor;
+    use_prev_speed = false;
+    system_started = 0;
+    static PWM motor(PWM::pwm2, 100);
+    motor.set(15.0);
+    MOTOR = &motor;
+    static PWM servo(PWM::pwm3, 100);
+    servo.set(15.0);
+    SERVO = &servo;
+    real_speed_dir = FWD;
+    curr_can_speed = 0; //current received speed from can message
+    curr_can_angle = 0; //current received angle from can message
+    prev_can_speed = 0; //last received speed from can message
+    prev_can_angle = 0; //last received speed from can message
+    prev_speed_val = 0; //last used speed to make curr_mps_speed close to can_speed
+    curr_mps_speed = 0; //current real speed
+    prev_rps_cnt = 0; //previously read pedometer count
+    curr_rps_cnt = 0; //current pedometer count coming from interrupt
 }
 
-PWM * get_servo_pwm(PWM::pwmType pwm)
+bool Motor::init()
 {
-	static PWM servo(PWM::pwm3, 100);
-	servo.set(15.0);
-	SERVO = &servo;
-	return &servo;
+    MOTOR->set(neutral_pwm);
+    SERVO->set(neutral_pwm);
+    real_speed_dir = FWD;
+    curr_can_speed = 0; //current received speed from can message
+    curr_can_angle = 0; //current received angle from can message
+    prev_can_speed = 0; //last received speed from can message
+    prev_can_angle = 0; //last received speed from can message
+    prev_speed_val = 0; //last used speed to make curr_mps_speed close to can_speed
+    curr_mps_speed = 0; //current real speed
+    prev_rps_cnt = 0; //previously read pedometer count
+    curr_rps_cnt = 0; //current pedometer count coming from interrupt
+    return true;
 }
 
-//Set speed based on input speed -70 to 70 MPH
-//Duty cycle will be 10% to 20%, so set speed accordingly
-//TBD: handle reverse speed in steps
-//Return: 1 if stepping required, 0 if done setting speed
-bool set_speed(float speed)
+
+//Bring the car to a use_prev_speed at neutral steering position, reset all Motor class values
+void Motor::stop_car()
 {
-	//float duty_delta = 10.0/140.0;
-	float duty_delta = 10.0/(67.0);
-	float speed_to_set;
-	//BREAK!
-	if (speed == 0)
-	{
-		MOTOR->set(15.0);
-	} else if (speed > 0) {
-		speed_to_set = 15.0 + (speed * duty_delta);
-		if (speed_to_set < 15.3)
-		{
-			speed_to_set = 15.3;
-		}
-		MOTOR->set(speed_to_set);
-		printf("set motor to %f, duty cycle %f\n", speed, 15.0 + speed*duty_delta);
-	} else if (speed < 0) {
-		speed_to_set = 15.0 + (speed * duty_delta);
-		if ((speed_to_set > 14.7) && (speed_to_set < 15.0))
-		{
-			speed_to_set = 14.7;
-		}
-		MOTOR->set(speed_to_set);
-		printf("set motor to %f, duty cycle %f\n", speed, 15.0 + speed*duty_delta);
-	} else {
-		speed = 0;
-		//ERROR: How did we reach this condition?
-	}
-	return 0;
+        MOTOR->set(neutral_pwm);
+        SERVO->set(neutral_pwm);
+        real_speed_dir = FWD;
+        prev_can_speed = 0; //last received speed from can message
+        prev_can_angle = 0; //last received speed from can message
+        prev_speed_val = 0; //last used speed to make curr_mps_speed close to can_speed
+        prev_rps_cnt = 0; //previously read pedometer count
+        curr_rps_cnt = 0; //current pedometer count coming from interrupt
 }
 
-//Angle can be between 30 & -30 degrees
-//Duty cycle is 10 to 20 degrees
-void set_angle(float angle)
+void Motor::motor_periodic()
 {
-	//Duty cycle/angle * angle -> duty cycle/degree
-	float angle_delta = 10.0/60.0;
-	float new_duty = 0;
-	float duty_default = 15.0;
-	//printf("delta is %f, duty default is %f\n", angle_delta, duty_default);
-
-	if (angle == 0)
-	{
-		SERVO->set(15.0);
-	} else if ((angle > 0) || (angle < 0)) {
-		new_duty = duty_default + (angle * angle_delta);
-		SERVO->set(duty_default + (angle * angle_delta));
-		printf("set angle to %f, duty cycle %f\n", angle, new_duty);
-	} else {
-		angle = 0;
-		//ERROR: How did we reach this condition?
-	}
+    this->get_can_vals();
+    this->set_speed();
+    this->set_angle();
+    //this->check_real_speed_update();
 }
 
-//Bring the car to a halt at neutral steering position
-void stop_car()
+void Motor::terminal_update(char a,float var)
 {
-	MOTOR->set(15.0);
-	SERVO->set(15.0);
+    switch(a)
+    {
+        case '1':
+            if(var >= 10.0)
+                curr_can_speed = 10.0;
+            else if(var <= -10.0)
+                curr_can_speed = -10.0;
+            else
+                curr_can_speed = var;
+            break;
+        case '2':
+            if(var >= 30.0)
+                curr_can_angle = 30.0;
+            else if(var <= -30.0)
+                curr_can_angle = -30.0;
+            else
+                curr_can_angle = var;
+            break;
+        default:
+            break;
+    }
 }
 
-float prev_speed_val=0;
-
-int total_count = 0;
-int old_count = 0;
-float mps_val=0;
-
-//If measured speed is not expected speed, then step up/down
-//until you reach the desired set speed
-void check_speed(int count)
+void Motor::get_can_vals() //to update curr_can_speed, curr_can_angle, prev_can_speed, prev_can_angle
 {
-	float meas_speed = get_mps_val();
-	float delta, step = .3;
+    can_msg_t can_msg;
+    while (CAN_rx(can1, &can_msg, 0))
+    {
+        // Form the message header from the metadata of the arriving message
+        dbc_msg_hdr_t can_msg_hdr;
+        can_msg_hdr.dlc = can_msg.frame_fields.data_len;
+        can_msg_hdr.mid = can_msg.msg_id;
 
-	//If speed is within 1mps, then no need to change
-	float margin = 1;
+        if(can_msg_hdr.mid == MASTER_CONTROL_HDR.mid)
+        {
+            MASTER_CONTROL_t master_can_msg;
+            // Attempt to decode the message (brute force, but should use switch/case with MID)
+            if (dbc_decode_MASTER_CONTROL(&master_can_msg, can_msg.data.bytes, &can_msg_hdr))
+            {
+                if (master_can_msg.MASTER_CONTROL_cmd == DRIVER_HEARTBEAT_cmd_START)
+                {
+                    //////printf("recv start\n");
+                    Motor::getInstance().system_started = 1;
+                    //Motor::getInstance().motor_periodic();
+                }
+                else if (master_can_msg.MASTER_CONTROL_cmd == DRIVER_HEARTBEAT_cmd_RESET)
+                {
+                    Motor::getInstance().stop_car();
+                    //////printf("recv start\n");
+                    Motor::getInstance().system_started = 0;
+                }
+                LE.on(2);
+            }
 
-	//Check if speed went to 0
-	if ((count % 20) == 0)
-	{
-		if (old_count == total_count)
-		{
-			mps_val = 0;
-		}
-	} else if ((count % 10) == 0) {
-		old_count = total_count;
-	}
+        }
+        else if(can_msg_hdr.mid == MOTOR_UPDATE_HDR.mid)
+        {
+            MOTOR_UPDATE_t motor_can_msg;
+            // Attempt to decode the message (brute force, but should use switch/case with MID)
+            if (dbc_decode_MOTOR_UPDATE(&motor_can_msg, can_msg.data.bytes, &can_msg_hdr))
+            {
+                 curr_can_speed = ((float)motor_can_msg.MOTOR_speed);
+                 if(curr_can_speed < 0)
+                     curr_can_speed = 0;
+                 curr_can_angle = ((float)motor_can_msg.MOTOR_turn_angle);
+                 LE.on(2);
+                 LD.setNumber((int)curr_can_speed);
+            }
+        }
+    }
 
-	//If current speed is < 0, we are in reverse
-	if (cur_speed < 0)
-	{
-		meas_speed = -meas_speed;
-	}
-	delta = meas_speed - cur_speed;
-
-	printf("delta speed is %f\n", delta);
-	//If delta greater than 0, we want to speed up
-	if ((delta < 0) && (delta < -margin))
-	{
-		prev_speed_val+=step;
-		//step = -delta;
-		set_speed(prev_speed_val);
-	} else if ((delta > 0) && (delta > margin)) {
-		prev_speed_val-=step;
-		//step = -delta;
-		set_speed(prev_speed_val);
-	} else {
-
-	}
-
-//	else if ((delta < 0) && (delta < -margin)){
-//		//If measured less than current, slow down
-//		step = .1;
-//		set_speed(meas_speed+step);
-//	}
 }
 
-uint64_t cur_clk;
-uint64_t t_delt = 0;
-float circumference = 32.99/100;
-//A falling edge interrupt will trigger each time the Hall sensor
-//detects a rotation
-//Based on the count of these interrupts, and the delta time,
-//we can determine how fast the wheels are spinning.
-void mps_intr_hdlr()
+void Motor::set_speed() //convert speed to pwm, and handle (curr_mps_speed != 0 && (prev_can_speed > 0 && curr_can_speed < 0))
 {
-	//printf("saw a wheel spin\n");
-	//mps_count++;
 
-	//Every two ticks, check the RPM
-	if (mps_count == 2)
-	{
-		t_delt = sys_get_uptime_us() - cur_clk;
-		mps_count = 0;
-		//Get time delta
-		cur_clk = sys_get_uptime_us();
 
-		mps_val = (2.0 * circumference * (10e+6)) / t_delt;
-		mps_val /= 10.0;
-	} else {
-		//start time
-		mps_count++;
-	}
-	total_count++;
+    if(curr_mps_speed > 0 &&  curr_can_speed < 0)
+        {
+                if(curr_mps_speed != 0)
+                {
+                    use_prev_speed = 1;
+                    prev_can_speed = 0;
+                    this->check_real_speed_update();
+                    prev_can_speed = curr_can_speed;
+                    return;
+                }
+        }
+
+    if(prev_can_speed == curr_can_speed)
+    {
+        this->check_real_speed_update();
+    }
+    else if(prev_can_speed != curr_can_speed)
+    {
+        ////printf("prev_can_speed = %f -> curr_can_speed = %f, prev_speed_val = %f", prev_can_speed, curr_can_speed, prev_speed_val);
+        //if(curr_can_speed < 0 && )
+        //prev_speed_val = curr_can_speed;
+        if(abs(prev_speed_val*duty_factor) <= 5.0)
+        {
+            ////printf("\n pwm = %f",neutral_pwm + (prev_speed_val*duty_factor));
+            //go more forward/reverse
+            MOTOR->set(neutral_pwm + (prev_speed_val*duty_factor));
+        }
+        else if(prev_speed_val*duty_factor < 0)
+        {
+            ////printf("\n pwm = %f",neutral_pwm + (prev_speed_val*duty_factor));
+            //runnning at max speed possible in reverse
+            MOTOR->set(neutral_pwm - (5.0));
+        }
+        else if(prev_speed_val*duty_factor > 0)
+        {
+            ////printf("\n pwm = %f",neutral_pwm + (prev_speed_val*duty_factor));
+            //runnning at max speed possible in forward
+            MOTOR->set(neutral_pwm + (5.0));
+        }
+
+        prev_can_speed = curr_can_speed;
+        if(curr_can_speed < 0)
+            real_speed_dir = REV;
+        else
+            real_speed_dir = FWD;
+    }
 }
 
-//This is called in 10 kHz periodic, so every 100ms
-//mps = meters per second
-//rev/100ms * 1000ms/1s * circumference (m)= mps
-float get_mps_val()
+void Motor::set_angle() //convert angle to pwm
 {
-	float mps;
-	//float circumference = 32.99/100;
-	//mps = ((float)mps_count * circumference * 1000.0) / (100.0);
-	mps = mps_val;
-	//rpm = (rpm_count * 1000 * 60) / 100;
-	//mps = ((float)mps_count * circumference);
-	//mps_count = 0;
-	if (mps != 0)
-	{
-	printf("mps val is %f\n", mps);
-	}
-	return mps;
+    if(prev_can_angle != curr_can_angle)
+    {
+        ////printf("prev_can_angle = %f -> curr_can_angle = %f", prev_can_angle, curr_can_angle);
+        prev_can_angle = curr_can_angle;
+    //max angle is 30
+    if(abs(curr_can_angle*duty_factor) <= 5.0)
+        SERVO->set(neutral_pwm + (curr_can_angle * (5.0/30.0)));
+    else
+        SERVO->set(neutral_pwm + (5.0));
+    }
 }
 
-//Scan for start command from master node
-void recv_system_start()
+void Motor::check_real_speed_update() //to check if curr_mps_speed == curr_can_speed, if not increase prev_speed_val
 {
-	MASTER_CONTROL_t master_can_msg;
-	can_msg_t can_msg;
-	while (CAN_rx(can1, &can_msg, 0))
-	{
-		// Form the message header from the metadata of the arriving message
-		dbc_msg_hdr_t can_msg_hdr;
-		can_msg_hdr.dlc = can_msg.frame_fields.data_len;
-		can_msg_hdr.mid = can_msg.msg_id;
 
-		// Attempt to decode the message (brute force, but should use switch/case with MID)
-		dbc_decode_MASTER_CONTROL(&master_can_msg, can_msg.data.bytes, &can_msg_hdr);
-		if (can_msg.data.bytes[0] == MASTER_cmd_START)
-		{
-			stop_car();
-			LE.on(1);
-			printf("recv start\n");
-			system_started = 1;
-		}
-	}
-	// Service the MIA counters
-	// successful decoding resets the MIA counter, otherwise it will increment to
-	// its MIA value and upon the MIA trigger, it will get replaced by your MIA struct
-	//rc = dbc_handle_mia_LAB_TEST(&master_can_msg, 1000);  // 1000ms due to 1Hz
-	//system_started = 1;
+    int diff_cnt = curr_rps_cnt;
+    curr_rps_cnt = 0;
+
+    if((diff_cnt)!=0)
+        ;//printf("\n diff_cnt = %d, prev_speed_val = %f\n",diff_cnt, prev_speed_val);
+    else
+        curr_mps_speed = 0.0;
+
+    if(curr_mps_speed != 0.0)
+    {
+        printf("\ncurr_mps_speed = %f\n", curr_mps_speed);
+    }
+    else
+    {
+        if(use_prev_speed == true)
+        {
+            prev_speed_val = prev_can_speed;
+            use_prev_speed = false;
+        }
+        else
+        {
+            prev_speed_val = curr_can_speed;
+        }
+    }
+
+
+    //curr_mps_speed = CIRCUMFERENCE*(diff_cnt)/0.1;
+    curr_mps_speed = real_speed_dir * (3.14*0.04)*(diff_cnt)/0.1;
+    LD.setNumber(abs(curr_mps_speed));
+
+    if(curr_can_speed == 0.0)
+        {
+            this->stop_car();
+            return;
+        }
+
+    if(this->speed_attained() == false)
+    {
+        float delta = curr_mps_speed - (curr_can_speed);
+        printf("\ndelta = %f\n",delta);
+
+        if(!(abs(delta) > 0 && abs(delta) < speed_margin))
+          {
+                //for quicker speed up/down
+                //if(abs(delta)>=speed_step*4)
+                //    prev_speed_val+=speed_step*(abs(delta)/speed_step);
+                //else
+                    if(curr_can_speed < curr_mps_speed)
+                        prev_speed_val-=speed_step;
+                    else if(curr_can_speed > curr_mps_speed)
+                        prev_speed_val+=speed_step;
+                        //this->set_speed();
+
+                    printf("prev_speed_val = %f\n",prev_speed_val);
+                    if(abs(prev_speed_val*duty_factor) <= 5.0)
+                                                {
+                                                    ////printf("\n pwm = %f",neutral_pwm + (prev_speed_val*duty_factor));
+                                                    //go more forward/reverse
+                                                    MOTOR->set(neutral_pwm + (prev_speed_val*duty_factor));
+                                                }
+                                                else if(prev_speed_val*duty_factor < 0)
+                                                {
+                                                    ////printf("\n pwm = %f",neutral_pwm + (prev_speed_val*duty_factor));
+                                                    //runnning at max speed possible in reverse
+                                                    MOTOR->set(neutral_pwm - (5.0));
+                                                }
+                                                else if(prev_speed_val*duty_factor > 0)
+                                                {
+                                                    ////printf("\n pwm = %f",neutral_pwm + (prev_speed_val*duty_factor));
+                                                    //runnning at max speed possible in forward
+                                                    MOTOR->set(neutral_pwm + (5.0));
+                                                }
+
+            }
+    }
+    prev_rps_cnt = curr_rps_cnt;
+}
+
+bool Motor::speed_attained()
+{
+    if(real_speed_dir == REV && prev_can_speed ==0)
+        {
+            prev_can_speed = curr_can_speed;
+            return true;
+        }
+    if(abs(curr_can_speed - curr_mps_speed) >=0 && abs(curr_can_speed - curr_mps_speed) <= speed_margin)
+        return true;
+    else
+        return false;
+}
+
+float Motor::get_curr_rps_speed()
+{
+    return curr_mps_speed;
+}
+
+
+/////////HELPER functions////////
+
+void rps_cnt_hdlr() //to update prev_rps_cnt and curr_rps_cnt;
+{
+    Motor::getInstance().curr_rps_cnt++;
 }
 
 void send_heartbeat()
 {
-	MOTOR_HB_t can_msg;
-	can_msg.Node_heartbeat_cmd = 0x1;
-	dbc_encode_and_send_MOTOR_HB(&can_msg);
+    MOTOR_HB_t can_msg;
+    can_msg.MOTOR_heartbeat = 0x1;
+    dbc_encode_and_send_MOTOR_HB(&can_msg);
+    LE.on(3);
 }
 
-//uint8_t MOTOR_actual_speed;               ///< B6:0  Min: 0 Max: 75   Destination: BRIDGE,MASTER
-  //  float sensed_battery_voltage
 void send_feedback()
 {
-	MOTOR_FEEDBACK_t can_msg;
-	can_msg.MOTOR_actual_speed = mps_val;
-	//TBD: Add battery voltage to can message
-	can_msg.sensed_battery_voltage = 0;
-	dbc_encode_and_send_MOTOR_FEEDBACK(&can_msg);
-}
-
-void update_speed_and_angle()
-{
-	bool rc = 0;
-	MOTOR_UPDATE_t motor_can_msg;
-	can_msg_t can_msg;
-	while (CAN_rx(can1, &can_msg, 0))
-	{
-		// Form the message header from the metadata of the arriving message
-		dbc_msg_hdr_t can_msg_hdr;
-		can_msg_hdr.dlc = can_msg.frame_fields.data_len;
-		can_msg_hdr.mid = can_msg.msg_id;
-
-		// Attempt to decode the message (brute force, but should use switch/case with MID)
-		rc = dbc_decode_MOTOR_UPDATE(&motor_can_msg, can_msg.data.bytes, &can_msg_hdr);
-		if (rc == true)
-		{
-			set_speed((float)motor_can_msg.MOTOR_speed);
-			set_angle((float)motor_can_msg.MOTOR_turn_angle);
-		}
-	}
+    MOTOR_FEEDBACK_t can_msg;
+    can_msg.MOTOR_actual_speed = Motor::getInstance().get_curr_rps_speed();
+    can_msg.sensed_battery_voltage = 0;
+    dbc_encode_and_send_MOTOR_FEEDBACK(&can_msg);
+    LE.on(4);
 }
 
 bool dbc_app_send_can_msg(uint32_t mid, uint8_t dlc, uint8_t bytes[8])
@@ -288,8 +350,50 @@ bool dbc_app_send_can_msg(uint32_t mid, uint8_t dlc, uint8_t bytes[8])
     can_msg.msg_id                = mid;
     can_msg.frame_fields.data_len = dlc;
     memcpy(can_msg.data.bytes, bytes, dlc);
-
     return CAN_tx(can1, &can_msg, 0);
 }
 
+//Scan for start/stop command from master node
+void recv_system_start()
+{
 
+    MASTER_CONTROL_t master_can_msg;
+    can_msg_t can_msg;
+    bool rc;
+    while (CAN_rx(can1, &can_msg, 0))
+    {
+        // Form the message header from the metadata of the arriving message
+        dbc_msg_hdr_t can_msg_hdr;
+        can_msg_hdr.dlc = can_msg.frame_fields.data_len;
+        can_msg_hdr.mid = can_msg.msg_id;
+
+        // Attempt to decode the message (brute force, but should use switch/case with MID)
+        if(can_msg_hdr.mid == MASTER_CONTROL_HDR.mid)
+                {
+                    MASTER_CONTROL_t master_can_msg;
+                    // Attempt to decode the message (brute force, but should use switch/case with MID)
+                    if (dbc_decode_MASTER_CONTROL(&master_can_msg, can_msg.data.bytes, &can_msg_hdr))
+                    {
+                        if (master_can_msg.MASTER_CONTROL_cmd == DRIVER_HEARTBEAT_cmd_START)
+                        {
+                            //////printf("recv start\n");
+                            Motor::getInstance().system_started = 1;
+                            //Motor::getInstance().motor_periodic();
+                        }
+                        else if (master_can_msg.MASTER_CONTROL_cmd == DRIVER_HEARTBEAT_cmd_RESET)
+                        {
+                            Motor::getInstance().stop_car();
+                            //////printf("recv start\n");
+                            Motor::getInstance().system_started = 0;
+                        }
+                        LE.on(2);
+                    }
+
+                }
+    }
+    // Service the MIA counters
+    // successful decoding resets the MIA counter, otherwise it will increment to
+    // its MIA value and upon the MIA trigger, it will get replaced by your MIA struct
+    //rc = dbc_handle_mia_LAB_TEST(&master_can_msg, 1000);  // 1000ms due to 1Hz
+    //system_started = 1;
+}
