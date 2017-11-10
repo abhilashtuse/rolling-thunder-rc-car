@@ -5,20 +5,15 @@ Describe(Cgreen);
 BeforeEach(Cgreen){}
 AfterEach(Cgreen){}
 
-// Ensure(Cgreen, passes_test){
-//     assert_that(1 == 1);
-// }
-// Ensure(Cgreen, fails_test){
-//     assert_that(0 == 1);
-// }
-
-TestSuite *gt_tests();
+// TestSuite *gt_tests();
+TestSuite *p10_test();
 
 int main(int ac, char **ag)
 {
     TestSuite *suite = create_test_suite();
-    add_suite(suite, gt_tests());
-    // add_test_with_context(suite, Cgreen, passes_test);
-    // add_test_with_context(suite, Cgreen, fails_test);
+    // add_suite(suite, gt_tests());
+    add_suite(suite, p10_test());
+    // BRIDGE_START_STOP_t ans = period_ten_test("c10091134.321453-121.987654321");
+    // period_ten_test("c10091134.321453-121.987654321");
     return run_test_suite(suite, create_text_reporter());
 }
