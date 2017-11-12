@@ -121,7 +121,7 @@ void period_10Hz(uint32_t count)
 {
 	 if (Motor::getInstance().system_started)
     {
-        Motor::getInstance().motor_periodic();
+        Motor::getInstance().motor_periodic(count);
         send_feedback();
         LE.on(1);
     }

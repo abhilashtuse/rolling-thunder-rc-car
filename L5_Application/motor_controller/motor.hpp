@@ -15,6 +15,9 @@
 #include "sys_config.h"
 #include "stdio.h"
 #include "math.h"
+#include <cmath>
+#include "math.h"
+#include "inttypes.h"
 
 /*
 LE(1); //on if system started
@@ -33,17 +36,20 @@ class Motor : public SingletonTemplate<Motor>
     public:
         bool init();
         void get_can_vals(); //to update curr_can_speed, curr_can_angle, prev_can_speed, prev_can_angle
-        void set_speed(); //convert speed to pwm, and handle (curr_mps_speed != 0 && (prev_can_speed > 0 && curr_can_speed < 0))
+        void set_speed(int count); //convert speed to pwm, and handle (curr_mps_speed != 0 && (prev_can_speed > 0 && curr_can_speed < 0))
         void set_angle(); //convert angle to pwm
-        void check_real_speed_update(); //to check if curr_mps_speed == curr_can_speed, if not increase prev_speed_val
+        void check_real_speed_update(int count); //to check if curr_mps_speed == curr_can_speed, if not increase prev_speed_val
         bool speed_attained();
         void stop_car();
-        void motor_periodic(); //to be called in periodic function, which alls appropriate functions
+        void motor_periodic(int count); //to be called in periodic function, which alls appropriate functions
         int curr_rps_cnt; //current pedometer count coming from interrupt
         void terminal_update(char a,float an);
         bool system_started;
         float get_curr_rps_speed();
-        friend void rps_cnt_hdlr();
+
+        int transition_reverse();
+
+		friend void rps_cnt_hdlr(); //to update prev_rps_cnt and curr_rps_cnt;
     private:
         Motor();  ///< Private constructor of this Singleton class
         friend class SingletonTemplate<Motor>;  ///< Friend class used for Singleton Template
@@ -60,6 +66,10 @@ class Motor : public SingletonTemplate<Motor>
         int prev_rps_cnt; //previously read pedometer count
         uint64_t cur_clk;
 
+        uint64_t cur_clk; //Beginning time of RPM measurement
+        int total_count; //total ticks from motor since start of program
+        int old_count; //previous number of ticks to make sure motor doesn't go to 0
+        int simple_count; //Used to transition motor from forward to reverse
 };
 
 void rps_cnt_hdlr();
