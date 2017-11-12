@@ -118,7 +118,7 @@ void period_1Hz(uint32_t count)
 
 void period_10Hz(uint32_t count)
 {
-	 if (Motor::getInstance().system_started)
+	 /*if (Motor::getInstance().system_started)
     {
         Motor::getInstance().motor_periodic(count);
         send_feedback();
@@ -132,15 +132,15 @@ void period_10Hz(uint32_t count)
 	LE.off(1);
     LE.off(2);
     LE.off(3);
-    LE.off(4);
+    LE.off(4);*/
 
 }
 
 void period_100Hz(uint32_t count)
 {
-    /*if (Motor::getInstance().system_started)
+    if (Motor::getInstance().system_started)
     {
-        Motor::getInstance().motor_periodic();
+        Motor::getInstance().motor_periodic(count);
         send_feedback();
         LE.on(1);
     }
@@ -152,7 +152,7 @@ void period_100Hz(uint32_t count)
     LE.off(1);
     LE.off(2);
     LE.off(3);
-    LE.off(4);*/
+    LE.off(4);
 
 }
 

@@ -41,7 +41,7 @@ class Motor : public SingletonTemplate<Motor>
         void check_real_speed_update(int count); //to check if curr_mps_speed == curr_can_speed, if not increase prev_speed_val
         bool speed_attained();
         void stop_car();
-        void motor_periodic(int count); //to be called in periodic function, which alls appropriate functions
+        void motor_periodic(uint32_t &count); //to be called in periodic function, which alls appropriate functions
         int curr_rps_cnt; //current pedometer count coming from interrupt
         void terminal_update(char a,float an);
         bool system_started;
