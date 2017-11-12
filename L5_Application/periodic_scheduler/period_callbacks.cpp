@@ -96,8 +96,7 @@ bool period_reg_tlm(void)
  */
 void period_1Hz(uint32_t count)
 {
-    return;
-	//If CAN bus turns off, re-enable it
+   	//If CAN bus turns off, re-enable it
 	if (CAN_is_bus_off(can1))
 	{
 		//printf("Can bus is off\n");
@@ -106,7 +105,7 @@ void period_1Hz(uint32_t count)
 
 	if(first_time)
 	{
-	    recv_system_start();
+	    if(recv_system_start())
 	    first_time = 0;
 	}
 

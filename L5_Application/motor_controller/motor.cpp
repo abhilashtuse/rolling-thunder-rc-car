@@ -277,6 +277,7 @@ void Motor::check_real_speed_update(int count) //to check if curr_mps_speed == c
 //    }
 
     //curr_mps_speed = CIRCUMFERENCE*(diff_cnt)/0.1;
+
     //curr_mps_speed = real_speed_dir * (3.14*0.04)*(diff_cnt)/0.1;
     LD.setNumber(abs(curr_mps_speed));
     printf("cur speed = %f\n", (curr_mps_speed*real_speed_dir));
@@ -340,13 +341,12 @@ void rps_cnt_hdlr() //to update prev_rps_cnt and curr_rps_cnt;
     if (M->curr_rps_cnt == 2)
         {
             t_delt = sys_get_uptime_us() - M->cur_clk;
-            //printf("t_delt = %PRIu64", t_delt);
             M->curr_rps_cnt = 0;
             //Get time delta
             M->cur_clk = sys_get_uptime_us();
 
             //using 0.04m as diameter of the gear
-            M->curr_mps_speed = (((3.1415926535897932384626433832795028841971*0.05588*2.0)*(10e+6))/t_delt)/10;
+            M->curr_mps_speed = (M->real_speed_dir * (3.14*0.04*2.0)*(10e+6))/t_delt;
             //mps_val /= 10.0;
         } else {
             //start time
@@ -382,7 +382,7 @@ bool dbc_app_send_can_msg(uint32_t mid, uint8_t dlc, uint8_t bytes[8])
 }
 
 //Scan for start/stop command from master node
-void recv_system_start()
+bool recv_system_start()
 {
 
     MASTER_CONTROL_t master_can_msg;
@@ -415,6 +415,7 @@ void recv_system_start()
                             Motor::getInstance().system_started = 0;
                         }
                         LE.on(2);
+                        return true;
                     }
 
                 }
@@ -424,4 +425,5 @@ void recv_system_start()
     // its MIA value and upon the MIA trigger, it will get replaced by your MIA struct
     //rc = dbc_handle_mia_LAB_TEST(&master_can_msg, 1000);  // 1000ms due to 1Hz
     //system_started = 1;
+    return false;
 }
