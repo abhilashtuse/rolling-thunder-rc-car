@@ -14,6 +14,7 @@
 #include "LPC17xx.h"
 #include "sys_config.h"
 #include "stdio.h"
+#include "math.h"
 
 /*
 LE(1); //on if system started
@@ -42,6 +43,7 @@ class Motor : public SingletonTemplate<Motor>
         void terminal_update(char a,float an);
         bool system_started;
         float get_curr_rps_speed();
+        friend void rps_cnt_hdlr();
     private:
         Motor();  ///< Private constructor of this Singleton class
         friend class SingletonTemplate<Motor>;  ///< Friend class used for Singleton Template
@@ -56,14 +58,17 @@ class Motor : public SingletonTemplate<Motor>
         float prev_speed_val; //last used speed to make curr_mps_speed close to can_speed
         float curr_mps_speed; //current real speed
         int prev_rps_cnt; //previously read pedometer count
+        uint64_t cur_clk;
 
 };
+
+void rps_cnt_hdlr();
 
 //interrupt handler callback
 void rps_cnt_hdlr(); //to update prev_rps_cnt and curr_rps_cnt;
 
 //Relevant CAN helper functions for motor controller
-void recv_system_start(); //receive start for the first time
+bool recv_system_start(); //receive start for the first time
 void send_heartbeat();
 void send_feedback(); //send voltage and mps speed
 
