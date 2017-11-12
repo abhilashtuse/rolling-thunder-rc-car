@@ -64,8 +64,6 @@ class Motor : public SingletonTemplate<Motor>
         float prev_speed_val; //last used speed to make curr_mps_speed close to can_speed
         float curr_mps_speed; //current real speed
         int prev_rps_cnt; //previously read pedometer count
-        uint64_t cur_clk;
-
         uint64_t cur_clk; //Beginning time of RPM measurement
         int total_count; //total ticks from motor since start of program
         int old_count; //previous number of ticks to make sure motor doesn't go to 0

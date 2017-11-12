@@ -353,20 +353,6 @@ void rps_cnt_hdlr() //to update prev_rps_cnt and curr_rps_cnt;
             M->curr_rps_cnt++;
         }
         //total_count++;
-
-            //printf("t_delt = %PRIu64", t_delt);
-            M->curr_rps_cnt = 0;
-            //Get time delta
-            M->cur_clk = sys_get_uptime_us();
-
-            //using 0.04m as diameter of the gear
-            M->curr_mps_speed = (((3.1415926535897932384626433832795028841971*0.05588*2.0)*(10e+6))/t_delt)/10;
-            //mps_val /= 10.0;
-        } else {
-            //start time
-            M->curr_rps_cnt++;
-        }
-        //total_count++;
 }
 
 void send_heartbeat()
