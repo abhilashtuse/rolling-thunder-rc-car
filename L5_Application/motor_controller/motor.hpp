@@ -70,8 +70,6 @@ class Motor : public SingletonTemplate<Motor>
         int simple_count; //Used to transition motor from forward to reverse
 };
 
-void rps_cnt_hdlr();
-
 //interrupt handler callback
 void rps_cnt_hdlr(); //to update prev_rps_cnt and curr_rps_cnt;
 
