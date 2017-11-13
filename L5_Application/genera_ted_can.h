@@ -15,7 +15,7 @@
 ////          MY ZONE        ////
 /////////////////////////////////
 
-#include "can.h"
+#include <can.h>
 #include <string.h>
 #include <math.h>
 #include "uart3.hpp"
@@ -34,7 +34,7 @@ bool dbc_app_send_can_msg(uint32_t mid, uint8_t dlc, uint8_t bytes[8]);
 void    start_car(float latitude, float longitude, int start);
 void    bridge_heartbeat();
 void rx_can(void);
-
+void    parse_and_send(char **str);
 
 /// Extern function needed for dbc_encode_and_send()
 extern bool dbc_app_send_can_msg(uint32_t mid, uint8_t dlc, uint8_t bytes[8]);
@@ -52,8 +52,8 @@ typedef struct {
 } dbc_msg_hdr_t; 
 
 static const dbc_msg_hdr_t MASTER_CONTROL_HDR =                   {  100, 1 };
-static const dbc_msg_hdr_t SENSOR_DATA_HDR =                      {  150, 5 };
-static const dbc_msg_hdr_t BRIDGE_START_STOP_HDR =                {  200, 8 };
+static const dbc_msg_hdr_t BRIDGE_START_STOP_HDR =                {  150, 8 };
+static const dbc_msg_hdr_t SENSOR_DATA_HDR =                      {  200, 5 };
 static const dbc_msg_hdr_t GEO_DATA_HDR =                         {  250, 3 };
 static const dbc_msg_hdr_t MOTOR_UPDATE_HDR =                     {  300, 3 };
 static const dbc_msg_hdr_t MOTOR_FEEDBACK_HDR =                   {  350, 2 };
@@ -71,6 +71,7 @@ typedef enum {
 } MASTER_CONTROL_cmd_E ;
 
 /// Enumeration(s) for Message: 'BRIDGE_HB' from 'BRIDGE
+
 typedef enum {
     Node_heartbeat_STOPPED = 2,
     Node_heartbeat_READY = 1,
@@ -89,8 +90,20 @@ typedef struct {
 } MASTER_CONTROL_t;
 
 
+/// Message: BRIDGE_START_STOP from 'BRIDGE
+// DLC: 8 byte(s), MID: 150
+typedef struct {
+    uint8_t BRIDGE_START_STOP_cmd : 1;        ///< B0:0   Destination: GEO,MASTER
+    double BRIDGE_CHECKPOINT_latitude;        ///< B28:1  Min: -90 Max: 90   Destination: GEO,MASTER
+    double BRIDGE_CHECKPOINT_longitude;       ///< B57:29  Min: -180 Max: 180   Destination: GEO,MASTER
+    uint8_t BRIDGE_FINAL_COORDINATE : 1;      ///< B58:58   Destination: GEO,MASTER
+
+    dbc_mia_info_t mia_info;
+} BRIDGE_START_STOP_t;
+
+
 /// Message: SENSOR_DATA from 'SENSOR
-// DLC: 5 byte(s), MID: 150
+// DLC: 5 byte(s), MID: 200
 typedef struct {
     uint8_t SENSOR_left_sensor;               ///< B7:0   Destination: MASTER,BRIDGE
     uint16_t SENSOR_middle_sensor;            ///< B16:8   Destination: MASTER,BRIDGE
@@ -99,19 +112,6 @@ typedef struct {
 
     dbc_mia_info_t mia_info;
 } SENSOR_DATA_t;
-
-
-/// Message: BRIDGE_START_STOP from 'BRIDGE
-// DLC: 8 byte(s), MID: 200
-typedef struct {
-    uint8_t BRIDGE_START_STOP_cmd : 1;        ///< B0:0   Destination: GEO,MASTER
-    float BRIDGE_CHECKPOINT_latitude;         ///< B28:1  Min: -90 Max: 90   Destination: GEO,MASTER
-    float BRIDGE_CHECKPOINT_longitude;        ///< B57:29  Min: -180 Max: 180   Destination: GEO,MASTER
-    uint8_t BRIDGE_FINAL_COORDINATE : 1;      ///< B58:58   Destination: GEO,MASTER
-    uint8_t BRIDGE_COORDINATE_READY : 1;      ///< B59:59   Destination: GEO,MASTER
-
-    dbc_mia_info_t mia_info;
-} BRIDGE_START_STOP_t;
 
 
 /// Message: GEO_DATA from 'GEO
@@ -148,8 +148,8 @@ typedef struct {
 /// Message: UPDATE_CURRENT_LOCATION from 'GEO
 // DLC: 8 byte(s), MID: 400
 typedef struct {
-    float UPDATE_calculated_latitude;         ///< B27:0  Min: -90 Max: 90   Destination: BRIDGE
-    float UPDATE_calculated_longitude;        ///< B56:28  Min: -180 Max: 180   Destination: BRIDGE
+    double UPDATE_calculated_latitude;        ///< B27:0  Min: -90 Max: 90   Destination: BRIDGE
+    double UPDATE_calculated_longitude;       ///< B56:28  Min: -180 Max: 180   Destination: BRIDGE
 
     dbc_mia_info_t mia_info;
 } UPDATE_CURRENT_LOCATION_t;
@@ -194,10 +194,10 @@ typedef struct {
 /// @{ These 'externs' need to be defined in a source file of your project
 extern const uint32_t                             MASTER_CONTROL__MIA_MS;
 extern const MASTER_CONTROL_t                     MASTER_CONTROL__MIA_MSG;
-extern const uint32_t                             SENSOR_DATA__MIA_MS;
-extern const SENSOR_DATA_t                        SENSOR_DATA__MIA_MSG;
 extern const uint32_t                             BRIDGE_START_STOP__MIA_MS;
 extern const BRIDGE_START_STOP_t                  BRIDGE_START_STOP__MIA_MSG;
+extern const uint32_t                             SENSOR_DATA__MIA_MS;
+extern const SENSOR_DATA_t                        SENSOR_DATA__MIA_MSG;
 extern const uint32_t                             GEO_DATA__MIA_MS;
 extern const GEO_DATA_t                           GEO_DATA__MIA_MSG;
 extern const uint32_t                             MOTOR_UPDATE__MIA_MS;
@@ -218,7 +218,7 @@ extern const MOTOR_HB_t                           MOTOR_HB__MIA_MSG;
 
 
 /// Encode MASTER
-// 'MASTER_CONTROL' message
+//'MASTER_CONTROL' message
 /// @returns the message header of this message
 static inline dbc_msg_hdr_t dbc_encode_MASTER_CONTROL(uint8_t bytes[8], MASTER_CONTROL_t *from)
 {
@@ -236,42 +236,6 @@ static inline bool dbc_encode_and_send_MASTER_CONTROL(MASTER_CONTROL_t *from)
 {
     uint8_t bytes[8];
     const dbc_msg_hdr_t hdr = dbc_encode_MASTER_CONTROL(bytes, from);
-    return dbc_app_send_can_msg(hdr.mid, hdr.dlc, bytes);
-}
-
-
-
-/// Encode SENSOR
-// 'SENSOR_DATA' message
-/// @returns the message header of this message
-static inline dbc_msg_hdr_t dbc_encode_SENSOR_DATA(uint8_t bytes[8], SENSOR_DATA_t *from)
-{
-    uint32_t raw;
-    bytes[0]=bytes[1]=bytes[2]=bytes[3]=bytes[4]=bytes[5]=bytes[6]=bytes[7]=0;
-
-    raw = ((uint32_t)(((from->SENSOR_left_sensor)))) & 0xff;
-    bytes[0] |= (((uint8_t)(raw) & 0xff)); ///< 8 bit(s) starting from B0
-
-    raw = ((uint32_t)(((from->SENSOR_middle_sensor)))) & 0x1ff;
-    bytes[1] |= (((uint8_t)(raw) & 0xff)); ///< 8 bit(s) starting from B8
-    bytes[2] |= (((uint8_t)(raw >> 8) & 0x01)); ///< 1 bit(s) starting from B16
-
-    raw = ((uint32_t)(((from->SENSOR_right_sensor)))) & 0xff;
-    bytes[2] |= (((uint8_t)(raw) & 0x7f) << 1); ///< 7 bit(s) starting from B17
-    bytes[3] |= (((uint8_t)(raw >> 7) & 0x01)); ///< 1 bit(s) starting from B24
-
-    raw = ((uint32_t)(((from->SENSOR_back_sensor)))) & 0x1ff;
-    bytes[3] |= (((uint8_t)(raw) & 0x7f) << 1); ///< 7 bit(s) starting from B25
-    bytes[4] |= (((uint8_t)(raw >> 7) & 0x03)); ///< 2 bit(s) starting from B32
-
-    return SENSOR_DATA_HDR;
-}
-
-/// Encode and send for dbc_encode_SENSOR_DATA() message
-static inline bool dbc_encode_and_send_SENSOR_DATA(SENSOR_DATA_t *from)
-{
-    uint8_t bytes[8];
-    const dbc_msg_hdr_t hdr = dbc_encode_SENSOR_DATA(bytes, from);
     return dbc_app_send_can_msg(hdr.mid, hdr.dlc, bytes);
 }
 
@@ -308,9 +272,6 @@ static inline dbc_msg_hdr_t dbc_encode_BRIDGE_START_STOP(uint8_t bytes[8], BRIDG
     raw = ((uint32_t)(((from->BRIDGE_FINAL_COORDINATE)))) & 0x01;
     bytes[7] |= (((uint8_t)(raw) & 0x01) << 2); ///< 1 bit(s) starting from B58
 
-    raw = ((uint32_t)(((from->BRIDGE_COORDINATE_READY)))) & 0x01;
-    bytes[7] |= (((uint8_t)(raw) & 0x01) << 3); ///< 1 bit(s) starting from B59
-
     return BRIDGE_START_STOP_HDR;
 }
 
@@ -319,6 +280,42 @@ static inline bool dbc_encode_and_send_BRIDGE_START_STOP(BRIDGE_START_STOP_t *fr
 {
     uint8_t bytes[8];
     const dbc_msg_hdr_t hdr = dbc_encode_BRIDGE_START_STOP(bytes, from);
+    return dbc_app_send_can_msg(hdr.mid, hdr.dlc, bytes);
+}
+
+
+
+/// Encode SENSOR
+//'SENSOR_DATA' message
+/// @returns the message header of this message
+static inline dbc_msg_hdr_t dbc_encode_SENSOR_DATA(uint8_t bytes[8], SENSOR_DATA_t *from)
+{
+    uint32_t raw;
+    bytes[0]=bytes[1]=bytes[2]=bytes[3]=bytes[4]=bytes[5]=bytes[6]=bytes[7]=0;
+
+    raw = ((uint32_t)(((from->SENSOR_left_sensor)))) & 0xff;
+    bytes[0] |= (((uint8_t)(raw) & 0xff)); ///< 8 bit(s) starting from B0
+
+    raw = ((uint32_t)(((from->SENSOR_middle_sensor)))) & 0x1ff;
+    bytes[1] |= (((uint8_t)(raw) & 0xff)); ///< 8 bit(s) starting from B8
+    bytes[2] |= (((uint8_t)(raw >> 8) & 0x01)); ///< 1 bit(s) starting from B16
+
+    raw = ((uint32_t)(((from->SENSOR_right_sensor)))) & 0xff;
+    bytes[2] |= (((uint8_t)(raw) & 0x7f) << 1); ///< 7 bit(s) starting from B17
+    bytes[3] |= (((uint8_t)(raw >> 7) & 0x01)); ///< 1 bit(s) starting from B24
+
+    raw = ((uint32_t)(((from->SENSOR_back_sensor)))) & 0x1ff;
+    bytes[3] |= (((uint8_t)(raw) & 0x7f) << 1); ///< 7 bit(s) starting from B25
+    bytes[4] |= (((uint8_t)(raw >> 7) & 0x03)); ///< 2 bit(s) starting from B32
+
+    return SENSOR_DATA_HDR;
+}
+
+/// Encode and send for dbc_encode_SENSOR_DATA() message
+static inline bool dbc_encode_and_send_SENSOR_DATA(SENSOR_DATA_t *from)
+{
+    uint8_t bytes[8];
+    const dbc_msg_hdr_t hdr = dbc_encode_SENSOR_DATA(bytes, from);
     return dbc_app_send_can_msg(hdr.mid, hdr.dlc, bytes);
 }
 
@@ -579,36 +576,6 @@ static inline bool dbc_decode_MASTER_CONTROL(MASTER_CONTROL_t *to, const uint8_t
 }
 
 
-/// Decode SENSOR
-//'SENSOR_DATA' message
-/// @param hdr  The header of the message to validate its DLC and MID; this can be NULL to skip this check
-static inline bool dbc_decode_SENSOR_DATA(SENSOR_DATA_t *to, const uint8_t bytes[8], const dbc_msg_hdr_t *hdr)
-{
-    const bool success = true;
-    // If msg header is provided, check if the DLC and the MID match
-    if (NULL != hdr && (hdr->dlc != SENSOR_DATA_HDR.dlc || hdr->mid != SENSOR_DATA_HDR.mid)) {
-        return !success;
-    }
-
-    uint32_t raw;
-    raw  = ((uint32_t)((bytes[0]))); ///< 8 bit(s) from B0
-    to->SENSOR_left_sensor = ((raw));
-    raw  = ((uint32_t)((bytes[1]))); ///< 8 bit(s) from B8
-    raw |= ((uint32_t)((bytes[2]) & 0x01)) << 8; ///< 1 bit(s) from B16
-    to->SENSOR_middle_sensor = ((raw));
-    raw  = ((uint32_t)((bytes[2] >> 1) & 0x7f)); ///< 7 bit(s) from B17
-    raw |= ((uint32_t)((bytes[3]) & 0x01)) << 7; ///< 1 bit(s) from B24
-    to->SENSOR_right_sensor = ((raw));
-    raw  = ((uint32_t)((bytes[3] >> 1) & 0x7f)); ///< 7 bit(s) from B25
-    raw |= ((uint32_t)((bytes[4]) & 0x03)) << 7; ///< 2 bit(s) from B32
-    to->SENSOR_back_sensor = ((raw));
-
-    to->mia_info.mia_counter_ms = 0; ///< Reset the MIA counter
-
-    return success;
-}
-
-
 /// Decode BRIDGE
 //'BRIDGE_START_STOP' message
 /// @param hdr  The header of the message to validate its DLC and MID; this can be NULL to skip this check
@@ -636,8 +603,36 @@ static inline bool dbc_decode_BRIDGE_START_STOP(BRIDGE_START_STOP_t *to, const u
     to->BRIDGE_CHECKPOINT_longitude = ((raw * 1e-06) + (-180.000000));
     raw  = ((uint32_t)((bytes[7] >> 2) & 0x01)); ///< 1 bit(s) from B58
     to->BRIDGE_FINAL_COORDINATE = ((raw));
-    raw  = ((uint32_t)((bytes[7] >> 3) & 0x01)); ///< 1 bit(s) from B59
-    to->BRIDGE_COORDINATE_READY = ((raw));
+
+    to->mia_info.mia_counter_ms = 0; ///< Reset the MIA counter
+
+    return success;
+}
+
+
+/// Decode SENSOR
+//'SENSOR_DATA' message
+/// @param hdr  The header of the message to validate its DLC and MID; this can be NULL to skip this check
+static inline bool dbc_decode_SENSOR_DATA(SENSOR_DATA_t *to, const uint8_t bytes[8], const dbc_msg_hdr_t *hdr)
+{
+    const bool success = true;
+    // If msg header is provided, check if the DLC and the MID match
+    if (NULL != hdr && (hdr->dlc != SENSOR_DATA_HDR.dlc || hdr->mid != SENSOR_DATA_HDR.mid)) {
+        return !success;
+    }
+
+    uint32_t raw;
+    raw  = ((uint32_t)((bytes[0]))); ///< 8 bit(s) from B0
+    to->SENSOR_left_sensor = ((raw));
+    raw  = ((uint32_t)((bytes[1]))); ///< 8 bit(s) from B8
+    raw |= ((uint32_t)((bytes[2]) & 0x01)) << 8; ///< 1 bit(s) from B16
+    to->SENSOR_middle_sensor = ((raw));
+    raw  = ((uint32_t)((bytes[2] >> 1) & 0x7f)); ///< 7 bit(s) from B17
+    raw |= ((uint32_t)((bytes[3]) & 0x01)) << 7; ///< 1 bit(s) from B24
+    to->SENSOR_right_sensor = ((raw));
+    raw  = ((uint32_t)((bytes[3] >> 1) & 0x7f)); ///< 7 bit(s) from B25
+    raw |= ((uint32_t)((bytes[4]) & 0x03)) << 7; ///< 2 bit(s) from B32
+    to->SENSOR_back_sensor = ((raw));
 
     to->mia_info.mia_counter_ms = 0; ///< Reset the MIA counter
 
@@ -870,31 +865,6 @@ static inline bool dbc_handle_mia_MASTER_CONTROL(MASTER_CONTROL_t *msg, uint32_t
     return mia_occurred;
 }
 
-/// Handle the MIA for SENSOR
-//SENSOR_DATA message
-/// @param   time_incr_ms  The time to increment the MIA counter with
-/// @returns true if the MIA just occurred
-/// @post    If the MIA counter reaches the MIA threshold, MIA struct will be copied to *msg
-static inline bool dbc_handle_mia_SENSOR_DATA(SENSOR_DATA_t *msg, uint32_t time_incr_ms)
-{
-    bool mia_occurred = false;
-    const dbc_mia_info_t old_mia = msg->mia_info;
-    msg->mia_info.is_mia = (msg->mia_info.mia_counter_ms >= SENSOR_DATA__MIA_MS);
-
-    if (!msg->mia_info.is_mia) { // Not MIA yet, so keep incrementing the MIA counter
-        msg->mia_info.mia_counter_ms += time_incr_ms;
-    }
-    else if(!old_mia.is_mia)   { // Previously not MIA, but it is MIA now
-        // Copy MIA struct, then re-write the MIA counter and is_mia that is overwriten
-        *msg = SENSOR_DATA__MIA_MSG;
-        msg->mia_info.mia_counter_ms = SENSOR_DATA__MIA_MS;
-        msg->mia_info.is_mia = true;
-        mia_occurred = true;
-    }
-
-    return mia_occurred;
-}
-
 /// Handle the MIA for BRIDGE
 //BRIDGE_START_STOP message
 /// @param   time_incr_ms  The time to increment the MIA counter with
@@ -913,6 +883,31 @@ static inline bool dbc_handle_mia_BRIDGE_START_STOP(BRIDGE_START_STOP_t *msg, ui
         // Copy MIA struct, then re-write the MIA counter and is_mia that is overwriten
         *msg = BRIDGE_START_STOP__MIA_MSG;
         msg->mia_info.mia_counter_ms = BRIDGE_START_STOP__MIA_MS;
+        msg->mia_info.is_mia = true;
+        mia_occurred = true;
+    }
+
+    return mia_occurred;
+}
+
+/// Handle the MIA for SENSOR
+//SENSOR_DATA message
+/// @param   time_incr_ms  The time to increment the MIA counter with
+/// @returns true if the MIA just occurred
+/// @post    If the MIA counter reaches the MIA threshold, MIA struct will be copied to *msg
+static inline bool dbc_handle_mia_SENSOR_DATA(SENSOR_DATA_t *msg, uint32_t time_incr_ms)
+{
+    bool mia_occurred = false;
+    const dbc_mia_info_t old_mia = msg->mia_info;
+    msg->mia_info.is_mia = (msg->mia_info.mia_counter_ms >= SENSOR_DATA__MIA_MS);
+
+    if (!msg->mia_info.is_mia) { // Not MIA yet, so keep incrementing the MIA counter
+        msg->mia_info.mia_counter_ms += time_incr_ms;
+    }
+    else if(!old_mia.is_mia)   { // Previously not MIA, but it is MIA now
+        // Copy MIA struct, then re-write the MIA counter and is_mia that is overwriten
+        *msg = SENSOR_DATA__MIA_MSG;
+        msg->mia_info.mia_counter_ms = SENSOR_DATA__MIA_MS;
         msg->mia_info.is_mia = true;
         mia_occurred = true;
     }
