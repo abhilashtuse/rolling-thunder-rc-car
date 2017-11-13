@@ -38,15 +38,16 @@
 #include "printf_lib.h"
 #include "can_d.hpp"
 
-
 extern uint8_t distance_left;
 extern uint16_t distance_middle;
 extern uint16_t distance_back;
 extern uint8_t distance_right;
+
 GPIO left_gpio(P2_4);
 GPIO middle_gpio(P2_1);
 GPIO right_gpio(P2_2);
 GPIO back_gpio(P2_0);
+
 int time_count = 0;
 bool start_message_received = false;
 
@@ -71,7 +72,6 @@ bool period_init(void)
     enable_interrupt(2);
     enable_interrupt(5);
 
-
     return true; // Must return true upon success
 }
 
@@ -82,7 +82,6 @@ bool period_reg_tlm(void)
     return true; // Must return true upon success
 }
 
-
 /**
  * Below are your periodic functions.
  * The argument 'count' is the number of times each periodic task is called.
@@ -90,12 +89,11 @@ bool period_reg_tlm(void)
 
 void period_1Hz(uint32_t count)
 {
-    if(start_message_received == false)
-    {
-     start_message_received = can_recieve();
+    if (start_message_received == false) {
+        start_message_received = can_receive();
     }
-    if(start_message_received)
-    {
+
+    if (start_message_received) {
         can_transmit_heartbeat();
     }
     //Reset can if bus off.
@@ -109,42 +107,34 @@ void period_10Hz(uint32_t count)
 
 void period_100Hz(uint32_t count)
 {
-    if(start_message_received)
-    {
-    time_count++;
-    //left and right sensors triggered sequentially(parallax ping)
-        if(time_count == 1)
-        {
+    if (start_message_received) {
+        time_count++;
+        //left and right sensors triggered sequentially(parallax ping)
+        if (time_count == 1) {
             //parallax ping 1 - left sensor
             set_sensor_pin_as_output(left_gpio);
             trigger_sensor(left_gpio, true);
             set_sensor_pin_as_input(left_gpio);
             //parallax ping 1 - right sensor
             set_sensor_pin_as_output(right_gpio);
-            trigger_sensor(right_gpio,true);
+            trigger_sensor(right_gpio, true);
             set_sensor_pin_as_input(right_gpio);
         }
-       //Middle and back sensors triggered sequentially(parallax ping)
-       else if(time_count == 2)
-        {
+        //Middle and back sensors triggered sequentially(parallax ping)
+        else if (time_count == 2) {
             //maxbotix 1 - middle sensor
             set_sensor_pin_as_output(middle_gpio);
-            trigger_sensor(middle_gpio , false);
+            trigger_sensor(middle_gpio, false);
             set_sensor_pin_as_input(middle_gpio);
             //maxbotix 2 - back sensor
             set_sensor_pin_as_output(back_gpio);
-            trigger_sensor(back_gpio,false);
+            trigger_sensor(back_gpio, false);
             set_sensor_pin_as_input(back_gpio);
         }
 
-
-        //All sensor values transmitted every 70ms
-        else if(time_count == 10)
-        {
-
-            can_transmit_message(distance_left,distance_middle,distance_right,distance_back);
-
-            //u0_dbg_printf("distance%d: %d\n",i,distance);
+        //All sensor values transmitted every 100 ms
+        else if (time_count == 10) {
+            can_transmit_message(distance_left, distance_middle, distance_right, distance_back);
             time_count = 0;
         }
         LE.on(1);

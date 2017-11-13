@@ -10,7 +10,8 @@
 
 void initialize_can();
 void can_reset();
-bool can_recieve();
+bool can_receive();
 void can_transmit_message(int left, int middle, int right, int back);
 void can_transmit_heartbeat();
+
 #endif /* CAN_D_HPP_ */

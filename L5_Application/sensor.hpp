@@ -3,11 +3,13 @@
  *
  *  Created on: Oct 19, 2017
  *      Author: Thrishna
+ *
  */
 
 #ifndef SENSOR_HPP_
 #define SENSOR_HPP_
 
+#include "gpio.hpp"
 
 void set_sensor_pin_as_output(GPIO &sensor_gpio);
 void set_sensor_pin_as_input(GPIO &sensor_gpio);
