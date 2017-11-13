@@ -1,3 +1,4 @@
+
 /*
  *     SocialLedge.com - Copyright (C) 2013
  *
@@ -33,7 +34,7 @@
 #include "io.hpp"
 #include "periodic_callback.h"
 #include "gpio.hpp"
-#include "genera_ted_can.h"
+#include "rt.h"
 /// This is the stack size used for each of the period tasks (1Hz, 10Hz, 100Hz, and 1000Hz)
 const uint32_t PERIOD_TASKS_STACK_SIZE_BYTES = (512 * 4);
 
@@ -44,10 +45,9 @@ const uint32_t PERIOD_TASKS_STACK_SIZE_BYTES = (512 * 4);
  * printf inside these functions, you need about 1500 bytes minimum
  */
 const uint32_t PERIOD_DISPATCHER_TASK_STACK_SIZE_BYTES = (512 * 3);
-int flag = 0;
-uint8_t first_message = 0;
-char buffer[64];
-
+int rd = 0;
+char buffer[512];
+QueueHandle_t qh = 0;
 /// Called once before the RTOS is started, this is a good place to initialize things once
 bool period_init(void)
 {
@@ -55,13 +55,18 @@ bool period_init(void)
     CAN_init(can1, 100, 20, 20, NULL, NULL);
     CAN_reset_bus(can1);
     CAN_bypass_filter_accept_all_msgs();
+
+    /**
+     * FreeRTOS Queue
+     * 
+    */
+    qh = xQueueCreate(10, sizeof(char *));  
     /*
      * Bluetooth Connection
      * Baud rate of device used is 9600
      */
     Uart3 &u3 = Uart3::getInstance();
-	u3.init(9600);
-    // LS.init();./
+	u3.init(9600, 512, 128);
     return true; // Must return true upon success
 }
 
@@ -81,26 +86,37 @@ void period_1Hz(uint32_t count)
     if (CAN_is_bus_off(can1))
         CAN_reset_bus(can1);
     // bridge_heartbeat();
+    // int flg = 0;
 }
 
 void period_10Hz(uint32_t count)
 {
-    Uart3 &u3 = Uart3::getInstance();
-    char temp[2] = {0};
-    char *ptr = buffer;
-    uint8_t n_checkpoints = 0;
-    uint8_t nb_lat = 0;
-    uint8_t nb_long = 0;
-    bool success = false;
-
-    if (flag==0){
-       bzero(buffer, 64);
-    }
-
+    static char *ptr = 0;
     /*
     * Send Update Current Location to CAN
     */
-    rx_can();
+    // rx_can();
+
+    // if(!ptr){
+    xQueueReceive(qh, &ptr, 0);
+    // }
+    if (ptr && *ptr){
+        // printf("PTR: %s\n", ptr);
+        parse_and_send(&ptr);
+        buffer[0] = '\0';
+    }
+}
+
+void period_100Hz(uint32_t count)
+{
+    // LE.toggle(3);
+    /**
+     * Read Bluetooth data
+     * 
+     * */
+    Uart3 &u3 = Uart3::getInstance();
+    char temp[2] = {0};
+    bool success = false;
 
     /*
     * Recieve from Bluetooth App
@@ -109,65 +125,33 @@ void period_10Hz(uint32_t count)
     LE.toggle(3);
     if(success){
         LE.toggle(1);
+        temp[1] = '\0';
         strcat(buffer,temp);
-        flag+=1;
+        // printf("buffer: %s\n", buffer);
+        rd+=1;
     }
-
+    
     /*
     * Parse message from App and send to Geo
     */
-    if (flag > 0 && flag < 64 && !success)
+    if (rd > 0 && rd < 512 && !success)
     {
-        buffer[flag] = '\0';
+        buffer[rd] = '\0';
+        char *tmp = buffer;        
         printf("Full payload: %s\n", buffer);
-        //start stop
-        if (buffer[0] == 'a'){
-            if (buffer[1] == '0')
-            {
-                start_car(0,0,0);
-                LE.toggle(2);//stop car command sent
-            }
-            else
-            {
-                start_car(1, 1, 1); // manual car start
-                LE.toggle(4);//start car command sent
-            }
-        }else if (buffer[0] == 'c'){ //sending checkpoints
-            ptr = ptr + 1;
-            if (!first_message){
-                n_checkpoints = get_two(ptr);
-                ptr = ptr + 2;
-                first_message = 1;
-            }
-            nb_lat = get_two(ptr);
-            ptr = ptr + 2;
-            nb_long = get_two(ptr);
-            ptr = ptr + 2;
-            /*
-            * Checkpoints
-            */
-            BRIDGE_START_STOP_t checkpoint = {0};
-            checkpoint.BRIDGE_START_STOP_cmd = 1;
-            checkpoint.BRIDGE_CHECKPOINT_latitude = atof(ptr);
-            ptr = ptr + nb_lat;
-            checkpoint.BRIDGE_CHECKPOINT_longitude = atof(ptr);
-            ptr = ptr + nb_long;
-            n_checkpoints--;
-            checkpoint.BRIDGE_FINAL_COORDINATE = (n_checkpoints <= 0) ? 1 : 0;
-            dbc_encode_and_send_BRIDGE_START_STOP(&checkpoint);
-        }
-        // }else if (buffer[0] == 'c'){
-            
-        // }else if (buffer[0] == 'd'){
+        // parse_and_send(rd, ptr);
 
-        // }
-        flag = 0;
+        /**
+         * FreeRTOS queue send payload
+        **/
+        xQueueSend(qh, &tmp, 0);
+        rd = 0;
+        u3.flush();
+    }else if (rd >= 512){
+        printf("ERROR: Exceeds buffer limit.\n");
+        rd = 0;
+        u3.flush();
     }
-}
-
-void period_100Hz(uint32_t count)
-{
-    // LE.toggle(3);
 }
 
 void period_1000Hz(uint32_t count)
