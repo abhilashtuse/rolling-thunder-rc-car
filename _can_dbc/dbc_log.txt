@@ -9,3 +9,8 @@ Date: 10/28/2017
 
  - Interchanged the message id of SENSOR_DATA with BRIDGE_START_STOP
  - Removed the element bridge coordinate ready from BRIDGE_START_STOP message.
+ 
+ Date: 11/13/2017
+ 
+ - Changed Geo_data structure
+ - Changed motor_update and motor_feedback structure
