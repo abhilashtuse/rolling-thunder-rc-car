@@ -18,6 +18,7 @@
 #include <cmath>
 #include "math.h"
 #include "inttypes.h"
+#include "stdint.h"
 
 /*
 LE(1); //on if system started
@@ -46,6 +47,9 @@ class Motor : public SingletonTemplate<Motor>
         void terminal_update(char a,float an);
         bool system_started;
         float get_curr_rps_speed();
+        void motor_pid();
+        void pid_update(float kp, float ki);
+        void pid_update_kd(float kd);
 
         int transition_reverse();
 
@@ -68,6 +72,13 @@ class Motor : public SingletonTemplate<Motor>
         int total_count; //total ticks from motor since start of program
         int old_count; //previous number of ticks to make sure motor doesn't go to 0
         int simple_count; //Used to transition motor from forward to reverse
+        //PID coefficients
+        float kp; //proportional
+        float ki; //integral
+        float kd; //derivative
+        //PID values to store
+        float integral_total=0;
+        float error_prior=0;
 };
 
 //interrupt handler callback

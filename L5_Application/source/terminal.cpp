@@ -73,10 +73,16 @@ bool terminalTask::taskEntry()
     CMD_HANDLER_FUNC(motorSpeedHandler);
     CMD_HANDLER_FUNC(motorAngleHandler);
     CMD_HANDLER_FUNC(motorStartHandler);
+    CMD_HANDLER_FUNC(pidHandler);
+    CMD_HANDLER_FUNC(pidHandler2);
     // System information handlers
     cp.addHandler(motorStartHandler, "setstart",    "Turn on motor, setstart 0/1.");
     cp.addHandler(motorSpeedHandler, "setspeed",    "Set motor speed in meters per second.");
     cp.addHandler(motorAngleHandler, "setangle",    "Set motor angle in degrees.");
+    //Set PID coefficients
+    cp.addHandler(pidHandler, "setpid",    "Set pid coefficients (kp, ki).");
+    cp.addHandler(pidHandler2, "setkd",    "Set pid coefficients (kd).");
+
     cp.addHandler(taskListHandler, "info",    "Task/CPU Info.  Use 'info 200' to get CPU during 200ms");
     cp.addHandler(memInfoHandler,  "meminfo", "See memory info");
     cp.addHandler(healthHandler,   "health",  "Output system health");

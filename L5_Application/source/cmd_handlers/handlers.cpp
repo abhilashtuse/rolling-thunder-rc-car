@@ -73,6 +73,32 @@ CMD_HANDLER_FUNC(motorAngleHandler)
     return true;
 }
 
+CMD_HANDLER_FUNC(pidHandler)
+{
+
+    float kp, ki;
+    if( 2 != cmdParams.scanf("%f %f",&kp, &ki))
+    {
+        return false;
+    }
+
+    Motor::getInstance().pid_update(kp, ki);
+    return true;
+}
+
+CMD_HANDLER_FUNC(pidHandler2)
+{
+
+    float kd;
+    if( 1 != cmdParams.scanf("%f",&kd))
+    {
+        return false;
+    }
+
+    Motor::getInstance().pid_update_kd(kd);
+    return true;
+}
+
 CMD_HANDLER_FUNC(motorStartHandler)
 {
     if(cmdParams == "1")

@@ -8,7 +8,7 @@
 
 #include "motor.hpp"
 
-#define speed_margin 0.25
+#define speed_margin 0.20
 //#define speed_step 0.25 //speed increment step for check_speed
 
 #define DIA_m 0.2 //0.05588 //in meters = 2.2 inches
@@ -20,7 +20,7 @@
 #define duty_factor (5.0/Traxxas_Max_Speed) //required pwm for 1ms => 15.0 +/- (1ms * duty_factor)
 #define neutral_pwm 15.0
 
-float speed_step = 0.025;
+float speed_step = 0.001;
 Motor::Motor()
 {
     use_prev_speed = false;
@@ -44,6 +44,9 @@ Motor::Motor()
     total_count = 0;
     old_count = 0;
     simple_count = 0;
+    kp = 0;
+    ki = 0;
+    kd = 0;
 }
 
 bool Motor::init()
@@ -59,6 +62,11 @@ bool Motor::init()
     curr_mps_speed = 0; //current real speed
     prev_rps_cnt = 0; //previously read pedometer count
     curr_rps_cnt = 0; //current pedometer count coming from interrupt
+    kp = 0.01;
+    ki = 0.00008;
+    kd = 0.006;
+    integral_total=0;
+    error_prior=0;
     return true;
 }
 
@@ -79,13 +87,15 @@ void Motor::stop_car()
 
 void Motor::motor_periodic(uint32_t &count)
 {
-    //int zero_wait;
+
     this->get_can_vals();
-    //zero_wait = abs((3.14*0.4*10)/curr_can_speed);
     this->set_speed(count);
     this->set_angle();
 
-	if ((count%5==0))
+    //This is the minimum time before we should expect a 0
+    //The motor driver should be spinning at least ~.5mps
+    //.5mps expects a motor tick every .773 seconds at worst case
+	if ((count%78==0))
 	{
 		if (old_count == total_count)
 		{
@@ -94,9 +104,8 @@ void Motor::motor_periodic(uint32_t &count)
 
 		}
 		else {
-		        old_count = total_count;
-
-		    }
+		    old_count = total_count;
+		}
 	}
 
 }
@@ -124,6 +133,19 @@ void Motor::terminal_update(char a,float var)
         default:
             break;
     }
+}
+
+//Divide into 2 functions, scanf can't handle 3 floats
+//Without crashing processor
+void Motor::pid_update(float kp, float ki)
+{
+	this->kp = kp;
+	this->ki = ki;
+}
+
+void Motor::pid_update_kd(float kd)
+{
+	this->kd = kd;
 }
 
 void Motor::get_can_vals() //to update curr_can_speed, curr_can_angle, prev_can_speed, prev_can_angle
@@ -217,7 +239,7 @@ void Motor::set_speed(int count) //convert speed to pwm, and handle (curr_mps_sp
 //        this->check_real_speed_update();
 //    }
 //    else
-        //////printf("prev_can_speed = %f -> curr_can_speed = %f, prev_speed_val = %f", prev_can_speed, curr_can_speed, prev_speed_val);
+        //printf("curr_can_speed = %f\n", curr_can_speed);
         //if(curr_can_speed < 0 && )
         //prev_speed_val = curr_can_speed;
         if(fabsf(prev_speed_val*duty_factor) <= 5.0)
@@ -261,11 +283,11 @@ void Motor::set_angle() //convert angle to pwm
 //Control loop to change motor speed based on speed read from sensor
 void Motor::check_real_speed_update(int count) //to check if curr_mps_speed == curr_can_speed, if not increase prev_speed_val
 {
-
-//    if(curr_mps_speed != 0.0)
-//    {
-//        //printf("\ncurr_mps_speed = %f\n", curr_mps_speed);
-//    }
+	//printf("check speed\n");
+    if(curr_mps_speed != 0.0)
+    {
+        //printf("\ncurr_mps_speed = %f\n", curr_mps_speed);
+    }
 //    else
 //    {
 //        if(use_prev_speed == true)
@@ -295,57 +317,105 @@ void Motor::check_real_speed_update(int count) //to check if curr_mps_speed == c
     LD.setNumber(fabsf(curr_mps_speed));
     //printf("\ndir = %d, cur speed = %f\n", real_speed_dir, (curr_mps_speed*real_speed_dir));
     if(curr_can_speed == 0.0)
-        {
-            this->stop_car();
-            return;
-        }
+	{
+		this->stop_car();
+		return;
+	}
 
+    //jump start the motor
+//    if(curr_mps_speed == 0 && curr_can_speed < 0)
+//		prev_speed_val-=0.008;
+//	else if(curr_mps_speed == 0 && curr_can_speed > 0)
+//		prev_speed_val+=0.008;
+
+
+    //PID loop handles all feedback of the motor speed
+    this->motor_pid();
+
+    //printf("check speed\n");
     //Feedback loop if our speed is outside acceptable margin
-    if(this->speed_attained() == false)
-    {
-        float delta = (real_speed_dir * curr_mps_speed) - (curr_can_speed);
-        //printf("\ndelta = %f\n",delta);
+//    if(this->speed_attained() == false)
+//    {
+//        float delta = (real_speed_dir * curr_mps_speed) - (curr_can_speed);
+//        //printf("\ndelta = %f\n",delta);
+//
+//        if(!(fabsf(delta) > 0 && fabsf(delta) < speed_margin))
+//          {
+//                //for quicker speed up/down
+//                //if(fabsf(delta)>=speed_step*4)
+//                //    prev_speed_val+=speed_step*(fabsf(delta)/speed_step);
+//                //else
+//            /*if(curr_mps_speed == 0 && curr_can_speed < 0)
+//                prev_speed_val-=0.3;
+//            else if(curr_mps_speed == 0 && curr_can_speed > 0)
+//                prev_speed_val+=0.3;*/
+//
+////                    if(curr_can_speed < (curr_mps_speed*real_speed_dir))
+////                        prev_speed_val-=speed_step;
+////                    else if(curr_can_speed > (curr_mps_speed*real_speed_dir))
+////                    {
+////                    	prev_speed_val+=speed_step;
+////          	  	  	}
+////
+////                    if(fabsf(prev_speed_val) > 10.0 && curr_mps_speed == 0 && curr_can_speed != 0)
+////                    {
+////                    		 prev_speed_val = 0;//(curr_can_speed>0?1:-1)*0.3;
+////					 	 speed_step = 0.5;
+////                    }
+////					else{
+////						speed_step = 0.025;
+////					}
+//                    //printf("prev_speed_val = %f\n",prev_speed_val);
+//
+//            } //delta between 0 and margin
+//    } //speed attained
+}
 
-        if(!(fabsf(delta) > 0 && fabsf(delta) < speed_margin))
-          {
-                //for quicker speed up/down
-                //if(fabsf(delta)>=speed_step*4)
-                //    prev_speed_val+=speed_step*(fabsf(delta)/speed_step);
-                //else
-            /*if(curr_mps_speed == 0 && curr_can_speed < 0)
-                prev_speed_val-=0.3;
-            else if(curr_mps_speed == 0 && curr_can_speed > 0)
-                prev_speed_val+=0.3;*/
+//PID uses factors to tune current speed
+//Error function is E(T) = DESIRED - READ_SPEED
+//Integral is sum of integral plus the current error * time (delta_t)
+//Derivative is the error - previous error / time (delta_t)
+void Motor::motor_pid()
+{
+	float kp = this->kp, ki = this->ki, kd = this->kd;
+	float new_set_speed;
+	//Proportional, integral and derivative error
+	float error, err_der;
+	float read_speed = curr_mps_speed * real_speed_dir;
+	//each iteration is 10ms, .01 seconds
+	float iter_time = .01;
 
-                    if(curr_can_speed < (curr_mps_speed*real_speed_dir))
-                        prev_speed_val-=speed_step;
-                    else if(curr_can_speed > (curr_mps_speed*real_speed_dir))
-                    {
-                    	prev_speed_val+=speed_step;
-          	  	  	}
+	//ERROR is desired speed - read speed
+	error = curr_can_speed - read_speed;
 
-                    if(fabsf(prev_speed_val) > 10.0 && curr_mps_speed == 0 && curr_can_speed != 0)
-                                   {
-                                         prev_speed_val = 0;//(curr_can_speed>0?1:-1)*0.3;
-                                         speed_step = 0.5;
-                                         //fact =
-                                   }
-                             else{
-                                     speed_step = 0.025;
-                             }
-                    ////printf("prev_speed_val = %f\n",prev_speed_val);
+	//Derivative error
+	err_der = (error - error_prior)/iter_time;
 
-            }
-    }
+	//Integral error
+	integral_total = integral_total + (error * iter_time);
+
+	//Update terms for integral and derivative error
+	error_prior = error;
+
+	//New set speed is the output of the PID loop
+	new_set_speed = kp*error+ kd*err_der + ki*integral_total;
+	prev_speed_val += new_set_speed;
+	if (prev_speed_val >= 33)
+	{
+		prev_speed_val = 33;
+	} else if (prev_speed_val <= -33) {
+		prev_speed_val = 0;
+	}
+	//In order to reverse, sometimes we need to reset the speed to 0
+	//Reverse speeds only work if you step from 0
+	if(fabsf(prev_speed_val) > 10.0 && curr_mps_speed == 0 && curr_can_speed != 0)
+	{
+		prev_speed_val = 0;
+	}
 }
 
 bool Motor::speed_attained()
 {
-//    if(real_speed_dir == REV && prev_can_speed ==0)
-//        {
-//            prev_can_speed = curr_can_speed;
-//            return true;
-//        }
     if(fabsf(curr_can_speed - (real_speed_dir*curr_mps_speed)) >=0 && fabsf(curr_can_speed - (real_speed_dir*curr_mps_speed)) <= speed_margin)
         return true;
     else
@@ -364,21 +434,30 @@ void rps_cnt_hdlr() //to update prev_rps_cnt and curr_rps_cnt;
 {
     uint64_t t_delt = 0;
     Motor *M = &Motor::getInstance();
+    //printf("got interrupt\n");
 
     if (M->curr_rps_cnt == 2)
-        {
-            t_delt = sys_get_uptime_us() - M->cur_clk;
-            M->curr_rps_cnt = 0;
-            //Get time delta
-            M->cur_clk = sys_get_uptime_us();
+	{
 
-            //using 0.04m as diameter of the gear
-            M->curr_mps_speed = ((3.14*0.04*2.0)*(10e+6))/(t_delt*10);
-            //mps_val /= 10.0;
-        } else {
-            //start time
-            M->curr_rps_cnt++;
-        }
+		t_delt = sys_get_uptime_us() - M->cur_clk;
+		M->curr_rps_cnt = 0;
+//		//Get time delta
+//		printf("t_delt: %d %d\n", (uint32_t)t_delt >> 32, (uint32_t)t_delt & 0xFFFFFFFF);
+//		printf("cur_clk: %d %d\n", (uint32_t)M->cur_clk >> 32, (uint32_t)M->cur_clk & 0xFFFFFFFF);
+
+		//using 0.045m as diameter of the gear
+		//This is the mps of the SPUR GEAR
+		M->curr_mps_speed = ((3.1415*0.045*2.0)*(1e+6))/(t_delt);
+
+		//MPS of the wheel is MPS SPUR * 2.72
+		//This is the REAL speed of the car based on the wheels spinning
+		M->curr_mps_speed *= 2.72;
+
+		M->cur_clk = sys_get_uptime_us();
+	} else {
+		//start time
+		M->curr_rps_cnt++;
+	}
     M->total_count++;
 }
 
