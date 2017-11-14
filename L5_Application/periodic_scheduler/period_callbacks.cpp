@@ -43,6 +43,10 @@
 #include "geo_compass.h"
 using namespace std;
 
+// Not using MIA for now. Checkpoints are not received periodically
+// const uint32_t             BRIDGE_START_STOP__MIA_MS = 3000;
+// const BRIDGE_START_STOP_t  BRIDGE_START_STOP__MIA_MSG = { 0 };
+
 /// This is the stack size used for each of the period tasks (1Hz, 10Hz, 100Hz, and 1000Hz)
 const uint32_t PERIOD_TASKS_STACK_SIZE_BYTES = (512 * 4);
 
@@ -149,8 +153,6 @@ void period_1Hz(uint32_t count)
         for (std::list<double>::iterator long_it=lat.begin(); long_it != lat.end(); ++lat_it,++long_it)
             printf("\nCheckpoints received: lat: %f long: %f", *lat_it, *long_it);
     }
-   // start_from_master=true;
-
 }
 
 // This method needs to be defined once, and AGC will call it for all dbc_encode_and_send_FOO() functions
@@ -219,56 +221,50 @@ void period_10Hz(uint32_t count)
 
 void period_100Hz(uint32_t count)
 {
-    /*can_msg_t can_msg = { 0 };
-    if (!start_from_master && CAN_rx(can1, &can_msg, 0))
-    {
-        MASTER_CONTROL_t master_can_msg;
-
-        // Form the message header from the metadata of the arriving message
-        dbc_msg_hdr_t can_msg_hdr;
-        can_msg_hdr.dlc = can_msg.frame_fields.data_len;
-        can_msg_hdr.mid = can_msg.msg_id;
-
-        // Attempt to decode the message (brute force, but should use switch/case with MID)
-        dbc_decode_MASTER_CONTROL(&master_can_msg, can_msg.data.bytes, &can_msg_hdr);
-        if (master_can_msg.MASTER_CONTROL_cmd == 1) {
-            start_from_master = true;
-            LE.set(1, true);
-        }
-    }*/
+    MASTER_CONTROL_t master_can_msg;
+    BRIDGE_START_STOP_t checkPoint = { 0 };
+    can_msg_t can_msg = { 0 };
     compass_calibration();
 
     static list<double> latitudeList;
     static list<double> longitudeList;
-    can_msg_t can_msg = { 0 };
 
     while (CAN_rx(can1, &can_msg, 0))
     {
-        BRIDGE_START_STOP_t checkPoint;
-
-
         // Form the message header from the metadata of the arriving message
         dbc_msg_hdr_t can_msg_hdr;
         can_msg_hdr.dlc = can_msg.frame_fields.data_len;
         can_msg_hdr.mid = can_msg.msg_id;
-        if(can_msg_hdr.mid== 150)
+        switch (can_msg_hdr.mid)
         {
-            dbc_decode_BRIDGE_START_STOP(&checkPoint, can_msg.data.bytes, &can_msg_hdr);
-            //     printf("\nCheckpoints received: lat: %f long: %f", checkPoint.BRIDGE_CHECKPOINT_latitude, checkPoint.BRIDGE_CHECKPOINT_longitude);
-            if(geoController.isupdate_checkpoint_flag()){
-                latitudeList.push_back(checkPoint.BRIDGE_CHECKPOINT_latitude);
-                longitudeList.push_back(checkPoint.BRIDGE_CHECKPOINT_longitude);
-            }
+            case 150:
+                dbc_decode_BRIDGE_START_STOP(&checkPoint, can_msg.data.bytes, &can_msg_hdr);
+                //     printf("\nCheckpoints received: lat: %f long: %f", checkPoint.BRIDGE_CHECKPOINT_latitude, checkPoint.BRIDGE_CHECKPOINT_longitude);
+                if(geoController.isupdate_checkpoint_flag()){
+                    latitudeList.push_back(checkPoint.BRIDGE_CHECKPOINT_latitude);
+                    longitudeList.push_back(checkPoint.BRIDGE_CHECKPOINT_longitude);
+                }
 
-            if(checkPoint.BRIDGE_FINAL_COORDINATE==1){
-                geoController.setupdate_checkpoint_flag(false);
-                geoController.setcheckpoint_latitude(latitudeList);
-                geoController.setcheckpoint_longitude(longitudeList);
-            }
+                if(checkPoint.BRIDGE_FINAL_COORDINATE==1){
+                    geoController.setupdate_checkpoint_flag(false);
+                    geoController.setcheckpoint_latitude(latitudeList);
+                    geoController.setcheckpoint_longitude(longitudeList);
+                }
+                break;
+            case 100:
+                if (!start_from_master)
+                {
+                    dbc_decode_MASTER_CONTROL(&master_can_msg, can_msg.data.bytes, &can_msg_hdr);
+                    if (master_can_msg.MASTER_CONTROL_cmd == 1) {
+                        start_from_master = true;
+                        LE.set(1, true);
+                    }
+                }
+                break;
         }
-
     }
-
+    // Not doing MIA because Checkpoints are received one time from bridge
+    // dbc_handle_mia_BRIDGE_START_STOP(&checkPoint, 10);
 }
 
 // 1Khz (1ms) is only run if Periodic Dispatcher was configured to run it at main():
