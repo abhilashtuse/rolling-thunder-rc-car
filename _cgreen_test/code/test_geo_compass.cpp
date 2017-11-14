@@ -17,7 +17,7 @@ Ensure(test_CalculateCompassBearingAngle)
     bearing_angle = geo_compass.CalculateBearingAngle(3, 133);
     assert_that_double(bearing_angle, is_equal_to_double(90.1));
     bearing_angle = geo_compass.CalculateBearingAngle(7, 208);
-    assert_that_double(bearing_angle, is_equal_to_double(-160));
+    assert_that_double(bearing_angle, is_equal_to_double(200));
     bearing_angle = geo_compass.CalculateBearingAngle(3, 57);
     assert_that_double(bearing_angle, is_equal_to_double(82.5));
 }

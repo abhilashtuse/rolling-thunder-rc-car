@@ -14,9 +14,9 @@ double GeoCompass::CalculateBearingAngle(uint8_t reg2, uint8_t reg3)
     reg = (reg2 << 8);
     reg |= reg3;
     bearing_angle = (reg / 10.0);
-    if (bearing_angle > 180) {
-        bearing_angle -= 360;
-    }
+//    if (bearing_angle > 180) {
+//        bearing_angle -= 360;
+//    }
     return bearing_angle;
 }
 

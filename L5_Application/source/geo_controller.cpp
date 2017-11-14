@@ -42,7 +42,7 @@ double GeoController::CalculateBearingAngle(GeoGPS geo_gps)
 {
     //printf("\n1:lat:%f long:%f\n", geo_gps.GetLatitude(), geo_gps.GetLongitude());
     //printf("\n2:lat:%f long:%f\n", latitude, longitude);
-    printf("\nBefore:lat:%f long:%f\n", checkpointLatitude.front(), checkpointLongitude.front());
+    //printf("\nBefore:lat:%f long:%f\n", checkpointLatitude.front(), checkpointLongitude.front());
     double latitude = DegreeToRadian(checkpointLatitude.front());
     double longitude = DegreeToRadian(checkpointLongitude.front());
     double gps_latitude = DegreeToRadian(geo_gps.GetLatitude());
@@ -69,17 +69,19 @@ double GeoController::CalculateBearingAngle(GeoGPS geo_gps)
  * For two same lat and long this function returns 0.02 meter distance. */
 double GeoController::CalculateDistance(GeoGPS geo_gps)
 {
-    //printf("\n1:lat:%f long:%f\n", geo_gps.GetLatitude(), geo_gps.GetLongitude());
+
     //printf("\n2:lat:%f long:%f\n", latitude, longitude);
     //  printf("\nBefore:lat:%f long:%f\n", checkpointLatitude.front(), checkpointLongitude.front());
-    string ch_lat = geo_gps.DoubleToString(checkpointLatitude.front());
-    string ch_long = geo_gps.DoubleToString(checkpointLongitude.front());
-    double d_lat = geo_gps.StringToDouble(ch_lat);
-    double d_long = geo_gps.StringToDouble(ch_long);
+//    string ch_lat = geo_gps.DoubleToString(checkpointLatitude.front());
+//    string ch_long = geo_gps.DoubleToString(checkpointLongitude.front());
+//    double d_lat = geo_gps.StringToDouble(ch_lat);
+//    double d_long = geo_gps.StringToDouble(ch_long);
     //printf("\nAfter:lat:%f long:%f\n", d_lat, d_long);
 
     //   double latitude = DegreeToRadian(d_lat);
     // double longitude = DegreeToRadian(d_long);
+  //  printf("\nGPS:lat:%f long:%f\n", geo_gps.GetLatitude(), geo_gps.GetLongitude());
+    //printf("\nBRIDGE:lat:%f long:%f\n", checkpointLatitude.front(), checkpointLongitude.front());
     double latitude = DegreeToRadian(checkpointLatitude.front());
     double longitude = DegreeToRadian(checkpointLongitude.front());
 
@@ -96,4 +98,13 @@ double GeoController::CalculateDistance(GeoGPS geo_gps)
 
     double c = 2 * atan2(sqrt(a), sqrt(1 - a));
     return earth_radius_m * c;
+}
+
+double GeoController::CalculateHeadingAngle(GeoGPS geo_gps, double compassBearingAngle)
+{
+    double headingAngle= CalculateBearingAngle(geo_gps)-compassBearingAngle;
+    if (headingAngle > 180) {
+        headingAngle -= 360;
+    }
+    return headingAngle;
 }
