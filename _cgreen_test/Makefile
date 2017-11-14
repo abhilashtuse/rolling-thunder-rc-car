@@ -38,7 +38,8 @@ HEADER_DIR = -I$(PROJ_DIR)/L0_LowLevel \
                -I$(PROJ_DIR)/L5_Application \
                -I$(PROJ_DIR)/L5_Application/examples \
                -I$(PROJ_DIR)/L5_Application/periodic_scheduler \
-               -I$(EXAMPLE_DIR) \
+			   -I$(PROJ_DIR)/_can_dbc \
+			   -I$(EXAMPLE_DIR)
 
 # Default for "make"
 all : test_all
@@ -66,6 +67,12 @@ c_list.o: $(PROJ_DIR)/L3_Utils/src/c_list.c
 	
 test_c_list.o: $(UT_DIR)/test_c_list.c $(HEADER_DIR) c_list.o
 	$(CXX) $(CGREEN_HEADERS) $(HEADER_DIR) $(CXXFLAGS) -c $(UT_DIR)/test_c_list.c $(LIBS)
+	
+master_controller.o: $(EXAMPLE_DIR)/master_controller.cpp
+	$(CXX) $(CGREEN_HEADERS) $(HEADER_DIR) $(CXXFLAGS) -c $(EXAMPLE_DIR)/master_controller.cpp $(LIBS)
+	
+test_master_controller.o: $(UT_DIR)/test_master_controller.cpp master_controller.o
+	$(CXX) $(CGREEN_HEADERS) $(HEADER_DIR) $(CXXFLAGS) -c $(UT_DIR)/test_master_controller.cpp $(LIBS)
 
-test_all: test_main.o c_list.o foo.o # gps_parse.o
+test_all: test_main.o c_list.o foo.o master_controller.o
 	$(CXX) $(CGREEN_HEADERS) $(HEADER_DIR) $(CXXFLAGS) $^ -o $@ $(LIBS)
