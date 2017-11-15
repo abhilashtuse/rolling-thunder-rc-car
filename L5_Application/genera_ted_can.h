@@ -26,6 +26,7 @@
 #define COORD_TURN_RIGHT 0x04
 #define COORD_REDUCE_SPEED 0x05
 #define COORD_ACCELERATE 0x06
+extern int hb_flag;
 
 uint8_t get_two(char *ptr);
 float decode_long(char *bytecode, unsigned int start, unsigned int end);
@@ -56,7 +57,7 @@ static const dbc_msg_hdr_t BRIDGE_START_STOP_HDR =                {  150, 8 };
 static const dbc_msg_hdr_t SENSOR_DATA_HDR =                      {  200, 5 };
 static const dbc_msg_hdr_t GEO_DATA_HDR =                         {  250, 3 };
 static const dbc_msg_hdr_t MOTOR_UPDATE_HDR =                     {  300, 3 };
-static const dbc_msg_hdr_t MOTOR_FEEDBACK_HDR =                   {  350, 2 };
+static const dbc_msg_hdr_t MOTOR_FEEDBACK_HDR =                   {  350, 3 };
 static const dbc_msg_hdr_t UPDATE_CURRENT_LOCATION_HDR =          {  400, 8 };
 static const dbc_msg_hdr_t BRIDGE_HB_HDR =                        {  500, 1 };
 static const dbc_msg_hdr_t SENSOR_HB_HDR =                        {  510, 1 };
@@ -66,17 +67,9 @@ static const dbc_msg_hdr_t MOTOR_HB_HDR =                         {  530, 1 };
 /// Enumeration(s) for Message: 'MASTER_CONTROL' from 'MASTER
 
 typedef enum {
-    MASTER_cmd_STOP = 0,
-    MASTER_cmd_START = 1,
+    DRIVER_HEARTBEAT_cmd_RESET = 0,
+    DRIVER_HEARTBEAT_cmd_START = 1,
 } MASTER_CONTROL_cmd_E ;
-
-/// Enumeration(s) for Message: 'BRIDGE_HB' from 'BRIDGE
-
-typedef enum {
-    Node_heartbeat_STOPPED = 2,
-    Node_heartbeat_READY = 1,
-    Node_heartbeat_RUNNING = 0,
-} Node_heartbeat_cmd_E ;
 
 
 
@@ -84,7 +77,7 @@ typedef enum {
 /// Message: MASTER_CONTROL from 'MASTER
 // DLC: 1 byte(s), MID: 100
 typedef struct {
-    MASTER_CONTROL_cmd_E MASTER_CONTROL_cmd : 1; ///< B0:0   Destination: SENSOR,MOTOR,BRIDGE,GEO
+    MASTER_CONTROL_cmd_E MASTER_CONTROL_cmd : 1; ///< B0:0   Destination: SENSOR,GEO,MOTOR,BRIDGE
 
     dbc_mia_info_t mia_info;
 } MASTER_CONTROL_t;
@@ -118,8 +111,8 @@ typedef struct {
 // DLC: 3 byte(s), MID: 250
 typedef struct {
     int16_t GEO_bearing_angle;                ///< B8:0  Min: -180 Max: 180   Destination: MASTER
-    uint8_t GEO_distance_to_checkpoint;       ///< B16:9   Destination: MASTER
-    uint8_t GEO_destination_reached : 1;      ///< B17:17   Destination: MASTER
+    float GEO_distance_to_checkpoint;         ///< B22:9  Min: 0 Max: 100   Destination: MASTER
+    uint8_t GEO_destination_reached : 1;      ///< B23:23   Destination: MASTER
 
     dbc_mia_info_t mia_info;
 } GEO_DATA_t;
@@ -128,18 +121,18 @@ typedef struct {
 /// Message: MOTOR_UPDATE from 'MASTER
 // DLC: 3 byte(s), MID: 300
 typedef struct {
-    int16_t MOTOR_speed;                      ///< B7:0  Min: -75 Max: 75   Destination: MOTOR
-    int8_t MOTOR_turn_angle;                  ///< B13:8  Min: -30 Max: 30   Destination: MOTOR
+    float MOTOR_speed;                        ///< B15:0  Min: -34 Max: 34   Destination: MOTOR
+    int8_t MOTOR_turn_angle;                  ///< B21:16  Min: -30 Max: 30   Destination: MOTOR
 
     dbc_mia_info_t mia_info;
 } MOTOR_UPDATE_t;
 
 
 /// Message: MOTOR_FEEDBACK from 'MOTOR
-// DLC: 2 byte(s), MID: 350
+// DLC: 3 byte(s), MID: 350
 typedef struct {
-    uint8_t MOTOR_actual_speed;               ///< B6:0  Min: 0 Max: 75   Destination: BRIDGE,MASTER
-    float sensed_battery_voltage;             ///< B12:7  Min: 0 Max: 5   Destination: BRIDGE,MASTER
+    float MOTOR_actual_speed;                 ///< B15:0  Min: -34 Max: 34   Destination: BRIDGE,MASTER
+    float sensed_battery_voltage;             ///< B21:16  Min: 0 Max: 5   Destination: BRIDGE,MASTER
 
     dbc_mia_info_t mia_info;
 } MOTOR_FEEDBACK_t;
@@ -158,7 +151,7 @@ typedef struct {
 /// Message: BRIDGE_HB from 'BRIDGE
 // DLC: 1 byte(s), MID: 500
 typedef struct {
-    Node_heartbeat_cmd_E Node_heartbeat_cmd : 2; ///< B1:0   Destination: MASTER
+    uint8_t BRIDGE_heartbeat : 2;             ///< B1:0   Destination: MASTER
 
     dbc_mia_info_t mia_info;
 } BRIDGE_HB_t;
@@ -167,7 +160,7 @@ typedef struct {
 /// Message: SENSOR_HB from 'SENSOR
 // DLC: 1 byte(s), MID: 510
 typedef struct {
-    uint8_t Node_heartbeat_cmd : 2;           ///< B1:0   Destination: MASTER
+    uint8_t SENSOR_heartbeat : 2;             ///< B1:0   Destination: MASTER
 
     dbc_mia_info_t mia_info;
 } SENSOR_HB_t;
@@ -176,7 +169,7 @@ typedef struct {
 /// Message: GEO_HB from 'GEO
 // DLC: 1 byte(s), MID: 520
 typedef struct {
-    uint8_t Node_heartbeat_cmd : 2;           ///< B1:0   Destination: MASTER
+    uint8_t GEO_heartbeat : 2;                ///< B1:0   Destination: MASTER
 
     dbc_mia_info_t mia_info;
 } GEO_HB_t;
@@ -185,7 +178,7 @@ typedef struct {
 /// Message: MOTOR_HB from 'MOTOR
 // DLC: 1 byte(s), MID: 530
 typedef struct {
-    uint8_t Node_heartbeat_cmd : 2;           ///< B1:0   Destination: MASTER
+    uint8_t MOTOR_heartbeat : 2;              ///< B1:0   Destination: MASTER
 
     dbc_mia_info_t mia_info;
 } MOTOR_HB_t;
@@ -218,7 +211,7 @@ extern const MOTOR_HB_t                           MOTOR_HB__MIA_MSG;
 
 
 /// Encode MASTER
-//'MASTER_CONTROL' message
+// 'MASTER_CONTROL' message
 /// @returns the message header of this message
 static inline dbc_msg_hdr_t dbc_encode_MASTER_CONTROL(uint8_t bytes[8], MASTER_CONTROL_t *from)
 {
@@ -242,7 +235,7 @@ static inline bool dbc_encode_and_send_MASTER_CONTROL(MASTER_CONTROL_t *from)
 
 
 /// Encode BRIDGE
-//'BRIDGE_START_STOP' message
+// 'BRIDGE_START_STOP' message
 /// @returns the message header of this message
 static inline dbc_msg_hdr_t dbc_encode_BRIDGE_START_STOP(uint8_t bytes[8], BRIDGE_START_STOP_t *from)
 {
@@ -286,7 +279,7 @@ static inline bool dbc_encode_and_send_BRIDGE_START_STOP(BRIDGE_START_STOP_t *fr
 
 
 /// Encode SENSOR
-//'SENSOR_DATA' message
+// 'SENSOR_DATA' message
 /// @returns the message header of this message
 static inline dbc_msg_hdr_t dbc_encode_SENSOR_DATA(uint8_t bytes[8], SENSOR_DATA_t *from)
 {
@@ -322,7 +315,7 @@ static inline bool dbc_encode_and_send_SENSOR_DATA(SENSOR_DATA_t *from)
 
 
 /// Encode GEO
-//'GEO_DATA' message
+// 'GEO_DATA' message
 /// @returns the message header of this message
 static inline dbc_msg_hdr_t dbc_encode_GEO_DATA(uint8_t bytes[8], GEO_DATA_t *from)
 {
@@ -336,12 +329,14 @@ static inline dbc_msg_hdr_t dbc_encode_GEO_DATA(uint8_t bytes[8], GEO_DATA_t *fr
     bytes[0] |= (((uint8_t)(raw) & 0xff)); ///< 8 bit(s) starting from B0
     bytes[1] |= (((uint8_t)(raw >> 8) & 0x01)); ///< 1 bit(s) starting from B8
 
-    raw = ((uint32_t)(((from->GEO_distance_to_checkpoint)))) & 0xff;
+    if(from->GEO_distance_to_checkpoint < 0) { from->GEO_distance_to_checkpoint = 0; } // Min value: 0
+    if(from->GEO_distance_to_checkpoint > 100) { from->GEO_distance_to_checkpoint = 100; } // Max value: 100
+    raw = ((uint32_t)(((from->GEO_distance_to_checkpoint) / 0.01) + 0.5)) & 0x3fff;
     bytes[1] |= (((uint8_t)(raw) & 0x7f) << 1); ///< 7 bit(s) starting from B9
-    bytes[2] |= (((uint8_t)(raw >> 7) & 0x01)); ///< 1 bit(s) starting from B16
+    bytes[2] |= (((uint8_t)(raw >> 7) & 0x7f)); ///< 7 bit(s) starting from B16
 
     raw = ((uint32_t)(((from->GEO_destination_reached)))) & 0x01;
-    bytes[2] |= (((uint8_t)(raw) & 0x01) << 1); ///< 1 bit(s) starting from B17
+    bytes[2] |= (((uint8_t)(raw) & 0x01) << 7); ///< 1 bit(s) starting from B23
 
     return GEO_DATA_HDR;
 }
@@ -357,24 +352,25 @@ static inline bool dbc_encode_and_send_GEO_DATA(GEO_DATA_t *from)
 
 
 /// Encode MASTER
-//'MOTOR_UPDATE' message
+// 'MOTOR_UPDATE' message
 /// @returns the message header of this message
 static inline dbc_msg_hdr_t dbc_encode_MOTOR_UPDATE(uint8_t bytes[8], MOTOR_UPDATE_t *from)
 {
     uint32_t raw;
     bytes[0]=bytes[1]=bytes[2]=bytes[3]=bytes[4]=bytes[5]=bytes[6]=bytes[7]=0;
 
-    if(from->MOTOR_speed < -75) { from->MOTOR_speed = -75; } // Min value: -75
-    if(from->MOTOR_speed > 75) { from->MOTOR_speed = 75; } // Max value: 75
-    // Stuff a real signed number into the DBC 8-bit signal
-    raw = ((uint32_t)(((from->MOTOR_speed)))) & 0xff;
+    if(from->MOTOR_speed < -34) { from->MOTOR_speed = -34; } // Min value: -34
+    if(from->MOTOR_speed > 34) { from->MOTOR_speed = 34; } // Max value: 34
+    // Stuff a real signed number into the DBC 16-bit signal
+    raw = ((uint32_t)(((from->MOTOR_speed) / 0.1) + 0.5)) & 0xffff;
     bytes[0] |= (((uint8_t)(raw) & 0xff)); ///< 8 bit(s) starting from B0
+    bytes[1] |= (((uint8_t)(raw >> 8) & 0xff)); ///< 8 bit(s) starting from B8
 
     if(from->MOTOR_turn_angle < -30) { from->MOTOR_turn_angle = -30; } // Min value: -30
     if(from->MOTOR_turn_angle > 30) { from->MOTOR_turn_angle = 30; } // Max value: 30
     // Stuff a real signed number into the DBC 6-bit signal
     raw = ((uint32_t)(((from->MOTOR_turn_angle)))) & 0x3f;
-    bytes[1] |= (((uint8_t)(raw) & 0x3f)); ///< 6 bit(s) starting from B8
+    bytes[2] |= (((uint8_t)(raw) & 0x3f)); ///< 6 bit(s) starting from B16
 
     return MOTOR_UPDATE_HDR;
 }
@@ -390,23 +386,24 @@ static inline bool dbc_encode_and_send_MOTOR_UPDATE(MOTOR_UPDATE_t *from)
 
 
 /// Encode MOTOR
-//'MOTOR_FEEDBACK' message
+// 'MOTOR_FEEDBACK' message
 /// @returns the message header of this message
 static inline dbc_msg_hdr_t dbc_encode_MOTOR_FEEDBACK(uint8_t bytes[8], MOTOR_FEEDBACK_t *from)
 {
     uint32_t raw;
     bytes[0]=bytes[1]=bytes[2]=bytes[3]=bytes[4]=bytes[5]=bytes[6]=bytes[7]=0;
 
-    // Not doing min value check since the signal is unsigned already
-    if(from->MOTOR_actual_speed > 75) { from->MOTOR_actual_speed = 75; } // Max value: 75
-    raw = ((uint32_t)(((from->MOTOR_actual_speed)))) & 0x7f;
-    bytes[0] |= (((uint8_t)(raw) & 0x7f)); ///< 7 bit(s) starting from B0
+    if(from->MOTOR_actual_speed < -34) { from->MOTOR_actual_speed = -34; } // Min value: -34
+    if(from->MOTOR_actual_speed > 34) { from->MOTOR_actual_speed = 34; } // Max value: 34
+    // Stuff a real signed number into the DBC 16-bit signal
+    raw = ((uint32_t)(((from->MOTOR_actual_speed) / 0.1) + 0.5)) & 0xffff;
+    bytes[0] |= (((uint8_t)(raw) & 0xff)); ///< 8 bit(s) starting from B0
+    bytes[1] |= (((uint8_t)(raw >> 8) & 0xff)); ///< 8 bit(s) starting from B8
 
     if(from->sensed_battery_voltage < 0) { from->sensed_battery_voltage = 0; } // Min value: 0
     if(from->sensed_battery_voltage > 5) { from->sensed_battery_voltage = 5; } // Max value: 5
-    raw = ((uint32_t)(((from->sensed_battery_voltage) / 0.1) + 0.5)) & 0x3f;
-    bytes[0] |= (((uint8_t)(raw) & 0x01) << 7); ///< 1 bit(s) starting from B7
-    bytes[1] |= (((uint8_t)(raw >> 1) & 0x1f)); ///< 5 bit(s) starting from B8
+    raw = ((uint32_t)(((from->sensed_battery_voltage) / 0.5) + 0.5)) & 0x3f;
+    bytes[2] |= (((uint8_t)(raw) & 0x3f)); ///< 6 bit(s) starting from B16
 
     return MOTOR_FEEDBACK_HDR;
 }
@@ -422,7 +419,7 @@ static inline bool dbc_encode_and_send_MOTOR_FEEDBACK(MOTOR_FEEDBACK_t *from)
 
 
 /// Encode GEO
-//'UPDATE_CURRENT_LOCATION' message
+// 'UPDATE_CURRENT_LOCATION' message
 /// @returns the message header of this message
 static inline dbc_msg_hdr_t dbc_encode_UPDATE_CURRENT_LOCATION(uint8_t bytes[8], UPDATE_CURRENT_LOCATION_t *from)
 {
@@ -460,14 +457,14 @@ static inline bool dbc_encode_and_send_UPDATE_CURRENT_LOCATION(UPDATE_CURRENT_LO
 
 
 /// Encode BRIDGE
-//'BRIDGE_HB' message
+// 'BRIDGE_HB' message
 /// @returns the message header of this message
 static inline dbc_msg_hdr_t dbc_encode_BRIDGE_HB(uint8_t bytes[8], BRIDGE_HB_t *from)
 {
     uint32_t raw;
     bytes[0]=bytes[1]=bytes[2]=bytes[3]=bytes[4]=bytes[5]=bytes[6]=bytes[7]=0;
 
-    raw = ((uint32_t)(((from->Node_heartbeat_cmd)))) & 0x03;
+    raw = ((uint32_t)(((from->BRIDGE_heartbeat)))) & 0x03;
     bytes[0] |= (((uint8_t)(raw) & 0x03)); ///< 2 bit(s) starting from B0
 
     return BRIDGE_HB_HDR;
@@ -484,14 +481,14 @@ static inline bool dbc_encode_and_send_BRIDGE_HB(BRIDGE_HB_t *from)
 
 
 /// Encode SENSOR
-//'SENSOR_HB' message
+// 'SENSOR_HB' message
 /// @returns the message header of this message
 static inline dbc_msg_hdr_t dbc_encode_SENSOR_HB(uint8_t bytes[8], SENSOR_HB_t *from)
 {
     uint32_t raw;
     bytes[0]=bytes[1]=bytes[2]=bytes[3]=bytes[4]=bytes[5]=bytes[6]=bytes[7]=0;
 
-    raw = ((uint32_t)(((from->Node_heartbeat_cmd)))) & 0x03;
+    raw = ((uint32_t)(((from->SENSOR_heartbeat)))) & 0x03;
     bytes[0] |= (((uint8_t)(raw) & 0x03)); ///< 2 bit(s) starting from B0
 
     return SENSOR_HB_HDR;
@@ -508,14 +505,14 @@ static inline bool dbc_encode_and_send_SENSOR_HB(SENSOR_HB_t *from)
 
 
 /// Encode GEO
-//'GEO_HB' message
+// 'GEO_HB' message
 /// @returns the message header of this message
 static inline dbc_msg_hdr_t dbc_encode_GEO_HB(uint8_t bytes[8], GEO_HB_t *from)
 {
     uint32_t raw;
     bytes[0]=bytes[1]=bytes[2]=bytes[3]=bytes[4]=bytes[5]=bytes[6]=bytes[7]=0;
 
-    raw = ((uint32_t)(((from->Node_heartbeat_cmd)))) & 0x03;
+    raw = ((uint32_t)(((from->GEO_heartbeat)))) & 0x03;
     bytes[0] |= (((uint8_t)(raw) & 0x03)); ///< 2 bit(s) starting from B0
 
     return GEO_HB_HDR;
@@ -532,14 +529,14 @@ static inline bool dbc_encode_and_send_GEO_HB(GEO_HB_t *from)
 
 
 /// Encode MOTOR
-//'MOTOR_HB' message
+// 'MOTOR_HB' message
 /// @returns the message header of this message
 static inline dbc_msg_hdr_t dbc_encode_MOTOR_HB(uint8_t bytes[8], MOTOR_HB_t *from)
 {
     uint32_t raw;
     bytes[0]=bytes[1]=bytes[2]=bytes[3]=bytes[4]=bytes[5]=bytes[6]=bytes[7]=0;
 
-    raw = ((uint32_t)(((from->Node_heartbeat_cmd)))) & 0x03;
+    raw = ((uint32_t)(((from->MOTOR_heartbeat)))) & 0x03;
     bytes[0] |= (((uint8_t)(raw) & 0x03)); ///< 2 bit(s) starting from B0
 
     return MOTOR_HB_HDR;
@@ -556,7 +553,7 @@ static inline bool dbc_encode_and_send_MOTOR_HB(MOTOR_HB_t *from)
 
 
 /// Decode MASTER
-//'MASTER_CONTROL' message
+// 'MASTER_CONTROL' message
 /// @param hdr  The header of the message to validate its DLC and MID; this can be NULL to skip this check
 static inline bool dbc_decode_MASTER_CONTROL(MASTER_CONTROL_t *to, const uint8_t bytes[8], const dbc_msg_hdr_t *hdr)
 {
@@ -577,7 +574,7 @@ static inline bool dbc_decode_MASTER_CONTROL(MASTER_CONTROL_t *to, const uint8_t
 
 
 /// Decode BRIDGE
-//'BRIDGE_START_STOP' message
+// 'BRIDGE_START_STOP' message
 /// @param hdr  The header of the message to validate its DLC and MID; this can be NULL to skip this check
 static inline bool dbc_decode_BRIDGE_START_STOP(BRIDGE_START_STOP_t *to, const uint8_t bytes[8], const dbc_msg_hdr_t *hdr)
 {
@@ -611,7 +608,7 @@ static inline bool dbc_decode_BRIDGE_START_STOP(BRIDGE_START_STOP_t *to, const u
 
 
 /// Decode SENSOR
-//'SENSOR_DATA' message
+// 'SENSOR_DATA' message
 /// @param hdr  The header of the message to validate its DLC and MID; this can be NULL to skip this check
 static inline bool dbc_decode_SENSOR_DATA(SENSOR_DATA_t *to, const uint8_t bytes[8], const dbc_msg_hdr_t *hdr)
 {
@@ -660,9 +657,9 @@ static inline bool dbc_decode_GEO_DATA(GEO_DATA_t *to, const uint8_t bytes[8], c
         to->GEO_bearing_angle = ((raw));
     }
     raw  = ((uint32_t)((bytes[1] >> 1) & 0x7f)); ///< 7 bit(s) from B9
-    raw |= ((uint32_t)((bytes[2]) & 0x01)) << 7; ///< 1 bit(s) from B16
-    to->GEO_distance_to_checkpoint = ((raw));
-    raw  = ((uint32_t)((bytes[2] >> 1) & 0x01)); ///< 1 bit(s) from B17
+    raw |= ((uint32_t)((bytes[2]) & 0x7f)) << 7; ///< 7 bit(s) from B16
+    to->GEO_distance_to_checkpoint = ((raw * 0.01));
+    raw  = ((uint32_t)((bytes[2] >> 7) & 0x01)); ///< 1 bit(s) from B23
     to->GEO_destination_reached = ((raw));
 
     to->mia_info.mia_counter_ms = 0; ///< Reset the MIA counter
@@ -684,12 +681,13 @@ static inline bool dbc_decode_MOTOR_UPDATE(MOTOR_UPDATE_t *to, const uint8_t byt
 
     uint32_t raw;
     raw  = ((uint32_t)((bytes[0]))); ///< 8 bit(s) from B0
-    if (raw & (1 << 7)) { // Check signed bit
-        to->MOTOR_speed = ((((0xFFFFFFFF << 7) | raw)));
+    raw |= ((uint32_t)((bytes[1]))) << 8; ///< 8 bit(s) from B8
+    if (raw & (1 << 15)) { // Check signed bit
+        to->MOTOR_speed = ((((0xFFFFFFFF << 15) | raw) * 0.1));
     } else {
-        to->MOTOR_speed = ((raw));
+        to->MOTOR_speed = ((raw * 0.1));
     }
-    raw  = ((uint32_t)((bytes[1]) & 0x3f)); ///< 6 bit(s) from B8
+    raw  = ((uint32_t)((bytes[2]) & 0x3f)); ///< 6 bit(s) from B16
     if (raw & (1 << 5)) { // Check signed bit
         to->MOTOR_turn_angle = ((((0xFFFFFFFF << 5) | raw)));
     } else {
@@ -714,11 +712,15 @@ static inline bool dbc_decode_MOTOR_FEEDBACK(MOTOR_FEEDBACK_t *to, const uint8_t
     }
 
     uint32_t raw;
-    raw  = ((uint32_t)((bytes[0]) & 0x7f)); ///< 7 bit(s) from B0
-    to->MOTOR_actual_speed = ((raw));
-    raw  = ((uint32_t)((bytes[0] >> 7) & 0x01)); ///< 1 bit(s) from B7
-    raw |= ((uint32_t)((bytes[1]) & 0x1f)) << 1; ///< 5 bit(s) from B8
-    to->sensed_battery_voltage = ((raw * 0.1));
+    raw  = ((uint32_t)((bytes[0]))); ///< 8 bit(s) from B0
+    raw |= ((uint32_t)((bytes[1]))) << 8; ///< 8 bit(s) from B8
+    if (raw & (1 << 15)) { // Check signed bit
+        to->MOTOR_actual_speed = ((((0xFFFFFFFF << 15) | raw) * 0.1));
+    } else {
+        to->MOTOR_actual_speed = ((raw * 0.1));
+    }
+    raw  = ((uint32_t)((bytes[2]) & 0x3f)); ///< 6 bit(s) from B16
+    to->sensed_battery_voltage = ((raw * 0.5));
 
     to->mia_info.mia_counter_ms = 0; ///< Reset the MIA counter
 
@@ -769,7 +771,7 @@ static inline bool dbc_decode_BRIDGE_HB(BRIDGE_HB_t *to, const uint8_t bytes[8],
 
     uint32_t raw;
     raw  = ((uint32_t)((bytes[0]) & 0x03)); ///< 2 bit(s) from B0
-    to->Node_heartbeat_cmd = (Node_heartbeat_cmd_E)((raw));
+    to->BRIDGE_heartbeat = ((raw));
 
     to->mia_info.mia_counter_ms = 0; ///< Reset the MIA counter
 
@@ -790,7 +792,7 @@ static inline bool dbc_decode_SENSOR_HB(SENSOR_HB_t *to, const uint8_t bytes[8],
 
     uint32_t raw;
     raw  = ((uint32_t)((bytes[0]) & 0x03)); ///< 2 bit(s) from B0
-    to->Node_heartbeat_cmd = ((raw));
+    to->SENSOR_heartbeat = ((raw));
 
     to->mia_info.mia_counter_ms = 0; ///< Reset the MIA counter
 
@@ -811,7 +813,7 @@ static inline bool dbc_decode_GEO_HB(GEO_HB_t *to, const uint8_t bytes[8], const
 
     uint32_t raw;
     raw  = ((uint32_t)((bytes[0]) & 0x03)); ///< 2 bit(s) from B0
-    to->Node_heartbeat_cmd = ((raw));
+    to->GEO_heartbeat = ((raw));
 
     to->mia_info.mia_counter_ms = 0; ///< Reset the MIA counter
 
@@ -832,7 +834,7 @@ static inline bool dbc_decode_MOTOR_HB(MOTOR_HB_t *to, const uint8_t bytes[8], c
 
     uint32_t raw;
     raw  = ((uint32_t)((bytes[0]) & 0x03)); ///< 2 bit(s) from B0
-    to->Node_heartbeat_cmd = ((raw));
+    to->MOTOR_heartbeat = ((raw));
 
     to->mia_info.mia_counter_ms = 0; ///< Reset the MIA counter
 

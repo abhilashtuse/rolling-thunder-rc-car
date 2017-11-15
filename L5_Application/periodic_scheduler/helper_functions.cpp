@@ -28,18 +28,6 @@ void    start_car(float latitude, float longitude, int start)
     dbc_encode_and_send_BRIDGE_START_STOP(&start_stop);
 }
 
-float decode_long(char *bytecode, unsigned int start, unsigned int end)
-{
-    float longitude = 0;
-    while(start < end && bytecode[start])
-    {
-        longitude *= 10;
-        longitude += bytecode[start] - '0';
-        start++;
-    }
-    return (longitude);
-}
-
 uint8_t get_two(char *ptr)
 {
     uint8_t n_c = 0;
@@ -53,16 +41,6 @@ uint8_t get_two(char *ptr)
     }
     return (n_c);
 }
-// float encode_long(float longitude)
-// {
-//     char longit[9];
-//     while(longitude)
-//     {
-//         longitude *= 10;
-//         longitude += *bytecode - '0';
-//     }
-//     return (longitude);
-// }
 
 float decode_lat(char *bytecode, unsigned int start, unsigned int end)
 {
@@ -77,12 +55,28 @@ float decode_lat(char *bytecode, unsigned int start, unsigned int end)
 }
 
 
-// void    bridge_heartbeat()
-// {
-//     BRIDGE_HB_t heartbeat = {0};
-//     heartbeat.BRIDGE_heartbeat = 1;
-//     dbc_encode_and_send_BRIDGE_HB(&heartbeat);
-// }
+void    bridge_heartbeat()
+{
+    BRIDGE_HB_t heartbeat = {0};
+    heartbeat.BRIDGE_heartbeat = 1;
+    dbc_encode_and_send_BRIDGE_HB(&heartbeat);
+}
+
+void rx_bridge_hb(void)
+{
+    // static inline bool dbc_decode_MASTER_CONTROL(MASTER_CONTROL_t *to, const uint8_t bytes[8], const dbc_msg_hdr_t *hdr)
+    can_msg_t can_rx_msg;
+    dbc_msg_hdr_t can_msg_hdr;
+    MASTER_CONTROL_t master_command;
+    
+    CAN_rx(can1, &can_rx_msg, 0);
+    if (can_rx_msg.msg_id == 100)
+    {
+        dbc_decode_MASTER_CONTROL(&master_command, can_rx_msg.data.bytes, &can_msg_hdr);
+        if (master_command.MASTER_CONTROL_cmd)
+            hb_flag = 1;
+    }
+}
 
 void rx_can(void)
 {
@@ -104,8 +98,8 @@ void rx_can(void)
         dbc_decode_UPDATE_CURRENT_LOCATION(&curr_loc, can_rx_msg.data.bytes, &can_msg_hdr);
         printf("Current Lat: %f\n", curr_loc.UPDATE_calculated_latitude);
         printf("Current Lng: %f\n", curr_loc.UPDATE_calculated_longitude);
-        // dbc_encode_and_send_UPDATE_CURRENT_LOCATION(&curr_loc);
-        // dbc_handle_mia_UPDATE_CURRENT_LOCATION
+        
+        dbc_handle_mia_UPDATE_CURRENT_LOCATION(&curr_loc, 10);
         /*
         * Send coordinates to the app
         */
@@ -126,7 +120,7 @@ void    parse_and_send(char **str)
     if (buffer[0] == 'a'){
         if (buffer[1] == '0')
         {
-            start_car(0,0,0);
+            start_car(0.0,0.0,0);
             LE.toggle(2);//stop car command sent
         }
         else
@@ -181,7 +175,7 @@ void    parse_and_send(char **str)
 
         // n_checkpoints--;
         
-        // dbc_encode_and_send_BRIDGE_START_STOP(&checkpoint);
+        dbc_encode_and_send_BRIDGE_START_STOP(&checkpoint);
 
         printf("Lat: %f\nLong: %f\nFinal?: %d\n",
         checkpoint.BRIDGE_CHECKPOINT_latitude,checkpoint.BRIDGE_CHECKPOINT_longitude,checkpoint.BRIDGE_FINAL_COORDINATE);

@@ -48,6 +48,7 @@ const uint32_t PERIOD_DISPATCHER_TASK_STACK_SIZE_BYTES = (512 * 3);
 int rd = 0;
 char buffer[512];
 QueueHandle_t qh = 0;
+int hb_flag = 0;
 /// Called once before the RTOS is started, this is a good place to initialize things once
 bool period_init(void)
 {
@@ -85,7 +86,8 @@ void period_1Hz(uint32_t count)
 {
     if (CAN_is_bus_off(can1))
         CAN_reset_bus(can1);
-    // bridge_heartbeat();
+    if (hb_flag)
+        bridge_heartbeat();
     // int flg = 0;
 }
 
@@ -127,14 +129,14 @@ void period_100Hz(uint32_t count)
         LE.toggle(1);
         temp[1] = '\0';
         strcat(buffer,temp);
-        // printf("buffer: %s\n", buffer);
+        printf("buffer: %s\n", buffer);
         rd+=1;
     }
     
     /*
     * Parse message from App and send to Geo
     */
-    if (rd > 0 && rd < 512 && !success)
+    if (rd >= 24 && rd < 512 && !success)
     {
         buffer[rd] = '\0';
         char *tmp = buffer;        
