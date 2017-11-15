@@ -89,6 +89,11 @@ bool recv_system_start(); //receive start for the first time
 void send_heartbeat();
 void send_feedback(); //send voltage and mps speed
 
+//Unit testing
+Motor& return_current_instance();
+float get_speed_pwm(float speed);
+int get_angle_pwm(float angle);
+
 #ifndef L5_APPLICATION_MOTOR_CONTROLLER_MOTOR_HPP_
 #define L5_APPLICATION_MOTOR_CONTROLLER_MOTOR_HPP_
 

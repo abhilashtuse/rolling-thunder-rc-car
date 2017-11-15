@@ -99,7 +99,6 @@ void period_1Hz(uint32_t count)
    	//If CAN bus turns off, re-enable it
 	if (CAN_is_bus_off(can1))
 	{
-		//printf("Can bus is off\n");
 		CAN_reset_bus(can1);
 	}
 

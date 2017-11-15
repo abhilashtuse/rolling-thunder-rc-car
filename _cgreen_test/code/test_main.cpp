@@ -8,8 +8,9 @@
 using namespace cgreen;
 
 // Include other files under test
-#include "test_c_list.c"
-#include "test_foo.cpp"
+//#include "test_c_list.c"
+//#include "test_foo.cpp"
+#include "motor_test.cpp"
 //#include "test_gps_parse.cpp"
 
 
@@ -245,8 +246,8 @@ int main(int argc, char **argv)
 int main(int argc, char **argv) 
 {
     TestSuite *suite = create_test_suite();
-    add_suite(suite, foo_suite());
-    add_suite(suite, c_list_suite());
+    add_suite(suite, motor_suite());
+    //add_suite(suite, c_list_suite());
     //add_suite(suite, gps_test_suite());
 
     return run_test_suite(suite, create_text_reporter());
