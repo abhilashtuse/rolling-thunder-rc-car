@@ -6,7 +6,7 @@
 #include "master_controller.hpp"
 #include "can.h"
 
-const uint32_t                             SENSOR_DATA__MIA_MS = 20000;
+const uint32_t                             SENSOR_DATA__MIA_MS = 5000;
 const SENSOR_DATA_t                        SENSOR_DATA__MIA_MSG = {9,9,9,9};
 
 /// This is the stack size used for each of the period tasks (1Hz, 10Hz, 100Hz, and 1000Hz)
@@ -122,11 +122,13 @@ void period_10Hz(uint32_t count)
 
 }
 
+
+SENSOR_DATA_t sensor_data;
+
 void period_100Hz(uint32_t count)
 {
     can_msg_t can_msg;
     GEO_DATA_t geo_data;
-    SENSOR_DATA_t sensor_data;
     MOTOR_UPDATE_t motor_update = {0};
 
 /*  if(start_sent == true)
@@ -224,8 +226,14 @@ void period_100Hz(uint32_t count)
             }
         }
     }
-    if(dbc_handle_mia_SENSOR_DATA(&sensor_data, 10));
+
+    if(dbc_handle_mia_SENSOR_DATA(&sensor_data, 10))
+    {
         LE.set(4,true);
+        motor_update.MOTOR_speed = 0;
+        motor_update.MOTOR_turn_angle = 0;
+        dbc_encode_and_send_MOTOR_UPDATE(&motor_update);
+    }
 }
 
 // 1Khz (1ms) is only run if Periodic Dispatcher was configured to run it at main():
