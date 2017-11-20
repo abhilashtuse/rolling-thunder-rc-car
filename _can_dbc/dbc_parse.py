@@ -74,7 +74,9 @@ class Signal(object):
 
     # Returns the variable type (float, int, or enum) based ont he signal data range
     def get_code_var_type(self):
-        if '.' in self.scale_str:
+        if self.scale_str.count(".00000")>=1:
+            return "double"
+        elif '.' in self.scale_str:
             return "float"
         else:
             if not is_empty(self.enum_info):

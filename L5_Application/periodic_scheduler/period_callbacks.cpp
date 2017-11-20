@@ -6,6 +6,8 @@
 #include "master_controller.hpp"
 #include "can.h"
 
+#define FORWARD_SPEED   1.0
+
 const uint32_t                             SENSOR_DATA__MIA_MS = 5000;
 const SENSOR_DATA_t                        SENSOR_DATA__MIA_MSG = {9,9,9,9};
 
@@ -29,10 +31,10 @@ bool period_reg_tlm(void)
 
 bool restart_can = false;
 
-#define front_threshold   30
+#define front_threshold   60
 #define left_threshold    10
 #define right_threshold   10
-#define back_threshold    30
+#define back_threshold    25
 
 void update_motor(SENSOR_DATA_t sensor_data, MOTOR_UPDATE_t *motor_update)
 {
@@ -41,33 +43,37 @@ void update_motor(SENSOR_DATA_t sensor_data, MOTOR_UPDATE_t *motor_update)
         if((sensor_data.SENSOR_right_sensor < right_threshold) && (sensor_data.SENSOR_left_sensor < left_threshold))
         {
             // Slow down
-            motor_update->MOTOR_speed = -2;
-            motor_update->MOTOR_turn_angle = 0;
+            motor_update->MOTOR_speed = -1;
+            motor_update->MOTOR_turn_angle = (sensor_data.SENSOR_right_sensor > sensor_data.SENSOR_left_sensor)? 23: -23;
         }
         else if(sensor_data.SENSOR_left_sensor < left_threshold)
         {
-            printf("left value : %d \n",sensor_data.SENSOR_left_sensor);
             // Take right
-            motor_update->MOTOR_speed = 1.5;
-            motor_update->MOTOR_turn_angle = 20;
+            motor_update->MOTOR_speed = FORWARD_SPEED;
+            motor_update->MOTOR_turn_angle = 23;
         }
         else if(sensor_data.SENSOR_right_sensor < right_threshold)
         {
             // Take left
-            printf("right value : %d \n",sensor_data.SENSOR_right_sensor);
-            motor_update->MOTOR_speed = 1.5;
-            motor_update->MOTOR_turn_angle = -20;
+            motor_update->MOTOR_speed = FORWARD_SPEED;
+            motor_update->MOTOR_turn_angle = -23;
         }
-        else if(sensor_data.SENSOR_middle_sensor < front_threshold)
+        else if(sensor_data.SENSOR_middle_sensor > 30 && sensor_data.SENSOR_middle_sensor < front_threshold)
         {
             // Slow down
-            motor_update->MOTOR_speed = -2;
-            motor_update->MOTOR_turn_angle = 0;
+            motor_update->MOTOR_speed = FORWARD_SPEED;
+            motor_update->MOTOR_turn_angle = (sensor_data.SENSOR_right_sensor > sensor_data.SENSOR_left_sensor)? 23: -23;
         }
+		else if(sensor_data.SENSOR_middle_sensor <= 30 && sensor_data.SENSOR_back_sensor > back_threshold)
+		{
+			// Stop & Reverse
+            motor_update->MOTOR_speed = -1;
+            motor_update->MOTOR_turn_angle = (sensor_data.SENSOR_right_sensor > sensor_data.SENSOR_left_sensor)? 23: -23;
+		}
     }
     else
     {
-        motor_update->MOTOR_speed = 1.5;
+        motor_update->MOTOR_speed = FORWARD_SPEED;
         motor_update->MOTOR_turn_angle = 0;
     }
 }
@@ -227,13 +233,13 @@ void period_100Hz(uint32_t count)
         }
     }
 
-    if(dbc_handle_mia_SENSOR_DATA(&sensor_data, 10))
+  /*  if(dbc_handle_mia_SENSOR_DATA(&sensor_data, 10))
     {
         LE.set(4,true);
         motor_update.MOTOR_speed = 0;
         motor_update.MOTOR_turn_angle = 0;
         dbc_encode_and_send_MOTOR_UPDATE(&motor_update);
-    }
+    }*/
 }
 
 // 1Khz (1ms) is only run if Periodic Dispatcher was configured to run it at main():
