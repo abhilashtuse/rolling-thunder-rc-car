@@ -72,15 +72,15 @@ double GeoController::CalculateDistance(GeoGPS geo_gps)
 
     //printf("\n2:lat:%f long:%f\n", latitude, longitude);
     //  printf("\nBefore:lat:%f long:%f\n", checkpointLatitude.front(), checkpointLongitude.front());
-//    string ch_lat = geo_gps.DoubleToString(checkpointLatitude.front());
-//    string ch_long = geo_gps.DoubleToString(checkpointLongitude.front());
-//    double d_lat = geo_gps.StringToDouble(ch_lat);
-//    double d_long = geo_gps.StringToDouble(ch_long);
+    //    string ch_lat = geo_gps.DoubleToString(checkpointLatitude.front());
+    //    string ch_long = geo_gps.DoubleToString(checkpointLongitude.front());
+    //    double d_lat = geo_gps.StringToDouble(ch_lat);
+    //    double d_long = geo_gps.StringToDouble(ch_long);
     //printf("\nAfter:lat:%f long:%f\n", d_lat, d_long);
 
     //   double latitude = DegreeToRadian(d_lat);
     // double longitude = DegreeToRadian(d_long);
-  //  printf("\nGPS:lat:%f long:%f\n", geo_gps.GetLatitude(), geo_gps.GetLongitude());
+    //  printf("\nGPS:lat:%f long:%f\n", geo_gps.GetLatitude(), geo_gps.GetLongitude());
     //printf("\nBRIDGE:lat:%f long:%f\n", checkpointLatitude.front(), checkpointLongitude.front());
     double latitude = DegreeToRadian(checkpointLatitude.front());
     double longitude = DegreeToRadian(checkpointLongitude.front());
@@ -102,9 +102,23 @@ double GeoController::CalculateDistance(GeoGPS geo_gps)
 
 double GeoController::CalculateHeadingAngle(GeoGPS geo_gps, double compassBearingAngle)
 {
-    double headingAngle= CalculateBearingAngle(geo_gps)-compassBearingAngle;
-    if (headingAngle > 180) {
-        headingAngle -= 360;
+    double geoBearingAngle = CalculateBearingAngle(geo_gps);
+    double headingAngle= geoBearingAngle-compassBearingAngle;
+    // printf("\n Gps bearing angle: %f    Compass Bearing Angle:%f", geoBearingAngle, compassBearingAngle);
+
+    if (headingAngle > 0 && headingAngle <= 180) {
+       // headingAngle = headingAngle;
     }
-    return headingAngle;
+    else if (headingAngle > 180 && headingAngle < 360) {
+        headingAngle = (360 - headingAngle) *(-1);
+    }
+    else if (headingAngle < 0 && headingAngle >= -180) {
+          //  headingAngle = (360 - headingAngle) *(-1);
+        }
+    else if (headingAngle < -180 && headingAngle > -360) {
+             headingAngle = (360 + headingAngle);
+            }
+    //printf("\n Gps bearing angle: %f  Compass Bearing Angle:%f  Heading Angle: %f ", geoBearingAngle, compassBearingAngle, headingAngle );
+        //printf("\n Heading Angle: %f ", headingAngle);
+        return headingAngle;
 }

@@ -17,7 +17,7 @@ class GeoController {
     bool updateCheckpointFlag;
     list<double> checkpointLatitude;
     list<double> checkpointLongitude;
-    const double distance_threshold = 0.7;
+    const double distance_threshold = 2.0;
 
     double DegreeToRadian( double degree )
     {

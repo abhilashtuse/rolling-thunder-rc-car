@@ -73,15 +73,15 @@ bool period_init(void)
     CAN_reset_bus( can1);
     geoController.setupdate_checkpoint_flag(true);
 
-    //testing
-    /*static list<double> latitudeList;
+    //testing Open
+    static list<double> latitudeList;
     static list<double> longitudeList;
-    latitudeList.push_back(37.336764);
-    longitudeList.push_back(-121.878913);
+    latitudeList.push_back(37.337180);
+    longitudeList.push_back(-121.879788);
     geoController.setcheckpoint_latitude(latitudeList);
     geoController.setcheckpoint_longitude(longitudeList);
-    geoController.setupdate_checkpoint_flag(false);*/
-    //
+    geoController.setupdate_checkpoint_flag(false);
+    //testing Close
     return true; // Must return true upon success
 }
 
@@ -146,13 +146,13 @@ void period_1Hz(uint32_t count)
         //        else
         //            printf("\ntx failed");
     }
-    if (SW.getSwitch(1) && geoController.isupdate_checkpoint_flag() == false) {
+   /* if (geoController.isupdate_checkpoint_flag() == false) {
         list<double> lat = geoController.getcheckpoint_latitude();
         list<double> longi = geoController.getcheckpoint_longitude();
         std::list<double>::iterator lat_it=lat.begin();
-        for (std::list<double>::iterator long_it=lat.begin(); long_it != lat.end(); ++lat_it,++long_it)
+        for (std::list<double>::iterator long_it=longi.begin(); long_it != longi.end(); ++lat_it,++long_it)
             printf("\nCheckpoints received: lat: %f long: %f", *lat_it, *long_it);
-    }
+    }*/
 }
 
 // This method needs to be defined once, and AGC will call it for all dbc_encode_and_send_FOO() functions
@@ -172,7 +172,7 @@ void period_10Hz(uint32_t count)
     uint8_t reg2 = I2C2::getInstance().readReg(0xc0, 0x2);
     uint8_t reg3 = I2C2::getInstance().readReg(0xc0, 0x3);
     compass_bearing_angle = geo_compass.CalculateBearingAngle(reg2, reg3);
-    printf("\n compass_bearing_angle: %f", compass_bearing_angle);
+    //printf("\n compass_bearing_angle: %f", compass_bearing_angle);
     if (count % 2) {
         char gps_str_arr[200];
         bool result = serialPort3.gets(gps_str_arr, 200, 1);
@@ -184,7 +184,7 @@ void period_10Hz(uint32_t count)
         // cur_location.UPDATE_calculated_longitude = longi;
         //dbc_encode_and_send_UPDATE_CURRENT_LOCATION(&cur_location);
         //    gps_str="$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47";
-        //bool  result=1;
+        //  result=1;
         if (result && gps_str.find("$GPGGA") == 0) {
             //  printf("Received: %s\n", gps_str_arr);
             geo_gps.ParseGPSString(gps_str);
@@ -194,7 +194,7 @@ void period_10Hz(uint32_t count)
             cur_location.UPDATE_calculated_latitude = geo_gps.GetLatitude();
             cur_location.UPDATE_calculated_longitude = geo_gps.GetLongitude();
             dbc_encode_and_send_UPDATE_CURRENT_LOCATION(&cur_location);
-           // printf("\nSENT:lat:%f long:%f\n", geo_gps.GetLatitude(), geo_gps.GetLongitude());
+            printf("\nSENT:lat:%f long:%f\n", geo_gps.GetLatitude(), geo_gps.GetLongitude());
             //   printf("Lat")
             //   LE.toggle(3);
         }
@@ -204,6 +204,7 @@ void period_10Hz(uint32_t count)
         geoController.ManipulateCheckpointList(geo_gps);
         GEO_DATA_t geo_cmd = { 0 };
         geo_cmd.GEO_bearing_angle = geoController.CalculateHeadingAngle(geo_gps, compass_bearing_angle);
+       // printf("\n heading_angle: %d", geo_cmd.GEO_bearing_angle);
         geo_cmd.GEO_distance_to_checkpoint =geoController.CalculateDistance(geo_gps);
         geo_cmd.GEO_destination_reached = geoController.isFinalDestinationReached(geo_cmd.GEO_distance_to_checkpoint) ? 1 : 0;
 
