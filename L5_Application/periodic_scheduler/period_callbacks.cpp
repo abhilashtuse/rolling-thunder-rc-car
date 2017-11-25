@@ -81,6 +81,7 @@ void period_10Hz(uint32_t count)
 
 SENSOR_DATA_t sensor_data;
 GEO_DATA_t geo_data;
+MOTOR_FEEDBACK_t motor_feedback;
 
 void period_100Hz(uint32_t count)
 {
@@ -91,59 +92,42 @@ void period_100Hz(uint32_t count)
     MASTER_CONTROL_t start_cmd;
     start_cmd.MASTER_CONTROL_cmd = DRIVER_HEARTBEAT_cmd_START;
 
-    if(start_sent == false)
+    while(CAN_rx(can1, &can_msg, 0))
     {
-        while(CAN_rx(can1, &can_msg, 0))
-        {
-            // Form the message header from the metadata of the arriving message
-            dbc_msg_hdr_t can_msg_hdr;
-            can_msg_hdr.dlc = can_msg.frame_fields.data_len;
-            can_msg_hdr.mid = can_msg.msg_id;
+        // Form the message header from the metadata of the arriving message
+        dbc_msg_hdr_t can_msg_hdr;
+        can_msg_hdr.dlc = can_msg.frame_fields.data_len;
+        can_msg_hdr.mid = can_msg.msg_id;
 
-            // Attempt to decode the message
-            if(dbc_decode_BRIDGE_START_STOP(&bridge_data, can_msg.data.bytes, &can_msg_hdr))
+        if(dbc_decode_BRIDGE_START_STOP(&bridge_data, can_msg.data.bytes, &can_msg_hdr))
+        {
+            if(bridge_data.BRIDGE_START_STOP_cmd == 0)
             {
-                if(bridge_data.BRIDGE_START_STOP_cmd == 1)
-                {
-                    LE.set(2, true);
-                    dbc_encode_and_send_MASTER_CONTROL(&start_cmd);
-                    start_sent = true;
-                }
+                motor_update.MOTOR_speed = 0;
+                motor_update.MOTOR_turn_angle = 0;
+                dbc_encode_and_send_MOTOR_UPDATE(&motor_update);
+                start_sent = false;
+                break;
+            }
+            else
+            {
+                LE.set(2, true);
+                dbc_encode_and_send_MASTER_CONTROL(&start_cmd);
+                start_sent = true;
             }
         }
-    }
-
-    if(start_sent == true)
-    {
-        while(CAN_rx(can1, &can_msg, 0))
+        else if(dbc_decode_SENSOR_DATA(&sensor_data, can_msg.data.bytes, &can_msg_hdr))
         {
-            // Form the message header from the metadata of the arriving message
-            dbc_msg_hdr_t can_msg_hdr;
-            can_msg_hdr.dlc = can_msg.frame_fields.data_len;
-            can_msg_hdr.mid = can_msg.msg_id;
-
-            if(dbc_decode_BRIDGE_START_STOP(&bridge_data, can_msg.data.bytes, &can_msg_hdr))
-            {
-                if(bridge_data.BRIDGE_START_STOP_cmd == 0)
-                {
-                    start_sent = false;
-                    LE.set(2, false);
-                    motor_update.MOTOR_speed = 0;
-                    motor_update.MOTOR_turn_angle = 0;
-                    dbc_encode_and_send_MOTOR_UPDATE(&motor_update);
-                    break;
-              }
-            }
-            else if(dbc_decode_SENSOR_DATA(&sensor_data, can_msg.data.bytes, &can_msg_hdr))
+            if(start_sent)
             {
                 LE.toggle(4);
-                if(!geo_data.GEO_destination_reached)
-                {
-                    motor.update_motor(sensor_data, &motor_update);
-                    dbc_encode_and_send_MOTOR_UPDATE(&motor_update);
-                }
+                motor.update_motor(sensor_data, &motor_update,motor_feedback.MOTOR_actual_speed);
+                dbc_encode_and_send_MOTOR_UPDATE(&motor_update);
             }
-            else if(dbc_decode_GEO_DATA(&geo_data, can_msg.data.bytes, &can_msg_hdr))
+        }
+        else if(dbc_decode_GEO_DATA(&geo_data, can_msg.data.bytes, &can_msg_hdr))
+        {
+            if(start_sent)
             {
                 LE.toggle(3);
 
@@ -159,6 +143,10 @@ void period_100Hz(uint32_t count)
                 motor_update.MOTOR_turn_angle = geo_data.GEO_bearing_angle/6;
                 dbc_encode_and_send_MOTOR_UPDATE(&motor_update);
             }
+        }
+        else if(dbc_decode_MOTOR_FEEDBACK(&motor_feedback, can_msg.data.bytes, &can_msg_hdr))
+        {
+
         }
     }
 }
