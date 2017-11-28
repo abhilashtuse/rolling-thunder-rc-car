@@ -52,7 +52,8 @@ double GeoController::CalculateBearingAngle(GeoGPS geo_gps)
     double bearing = atan2(sin(diff_longitude) * cos(latitude),
             (cos(gps_latitude) * sin(latitude)) -
             sin(gps_latitude) * cos(latitude) * cos(diff_longitude));
-    return bearing;
+
+    return (bearing * 180)/M_PI;
 }
 
 /*
@@ -107,18 +108,18 @@ double GeoController::CalculateHeadingAngle(GeoGPS geo_gps, double compassBearin
     // printf("\n Gps bearing angle: %f    Compass Bearing Angle:%f", geoBearingAngle, compassBearingAngle);
 
     if (headingAngle > 0 && headingAngle <= 180) {
-       // headingAngle = headingAngle;
+        // headingAngle = headingAngle;
     }
     else if (headingAngle > 180 && headingAngle < 360) {
         headingAngle = (360 - headingAngle) *(-1);
     }
     else if (headingAngle < 0 && headingAngle >= -180) {
-          //  headingAngle = (360 - headingAngle) *(-1);
-        }
+        //  headingAngle = (360 - headingAngle) *(-1);
+    }
     else if (headingAngle < -180 && headingAngle > -360) {
-             headingAngle = (360 + headingAngle);
-            }
+        headingAngle = (360 + headingAngle);
+    }
     //printf("\n Gps bearing angle: %f  Compass Bearing Angle:%f  Heading Angle: %f ", geoBearingAngle, compassBearingAngle, headingAngle );
-        //printf("\n Heading Angle: %f ", headingAngle);
-        return headingAngle;
+    //printf("\n Heading Angle: %f ", headingAngle);
+    return headingAngle;
 }

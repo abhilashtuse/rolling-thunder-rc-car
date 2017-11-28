@@ -9,6 +9,7 @@
 #define GEO_CONTROLLER_H_
 
 #include <cmath>
+#include <math.h>
 #include <list>
 #include "geo_gps.h"
 
