@@ -94,6 +94,7 @@ bool period_reg_tlm(void)
 
 void compass_calibration()
 {
+    static int cm3_count = 0;
     static int cm_count = 0;
     if (SW.getSwitch(1) || (cm_count > 0 && cm_count < 9)) // switch to calibration mode
     {
@@ -114,15 +115,62 @@ void compass_calibration()
             I2C2::getInstance().writeReg(0xc0, 0x0, 0xF6);
             LE.set(1, true);
         }
-        //printf("\n cm_count: %d", cm_count);
+        printf("\n cm_count: %d", cm_count);
     }
-    if (SW.getSwitch(2) && cm_count > 7) //Come out from calibration mode
+    if (SW.getSwitch(2) && (cm_count > 7 || cm3_count > 7)) //Come out from calibration mode
     {
         //printf("\n count: %d cm_count: %d", count, cm_count);
         I2C2::getInstance().writeReg(0xc0, 0x0, 0xF8);
         cm_count = 0;
+        cm3_count = 0;
         LE.set(1, false);
     }
+
+    static int cm2_count = 0;
+    if (SW.getSwitch(3) || (cm2_count > 0 && cm2_count < 9)) // Restore factory calibration
+    {
+        /* enter the calibration mode by sending a 3 byte sequence of 0xF0,0xF5 and then 0xF6
+         * to the command register, these MUST be sent in 3 separate I2C frames, you cannot send
+         * them all at once. There MUST be a minimum of 20ms between each I2C frame */
+        cm2_count++;
+        if (cm2_count == 1) {
+            //printf("\n count: %d cm2_count: %d", count, cm2_count);
+            I2C2::getInstance().writeReg(0xc0, 0x0, 0x20);
+        }
+        else if (cm2_count == 4) {
+            //printf("\n count: %d cm2_count: %d", count, cm2_count);
+            I2C2::getInstance().writeReg(0xc0, 0x0, 0x2A);
+        }
+        else if (cm2_count == 7) {
+            //printf("\n count: %d cm2_count: %d", count, cm2_count);
+            I2C2::getInstance().writeReg(0xc0, 0x0, 0x60);
+            LE.set(3, true);
+        }
+        //printf("\n cm2_count: %d", cm2_count);
+    }
+
+    if (SW.getSwitch(4) || (cm3_count > 0 && cm3_count < 9)) // switch to horizontal calibration mode
+    {
+        /* enter the calibration mode by sending a 3 byte sequence of 0xF0,0xF5 and then 0xF6
+         * to the command register, these MUST be sent in 3 separate I2C frames, you cannot send
+         * them all at once. There MUST be a minimum of 20ms between each I2C frame */
+        cm3_count++;
+        if (cm3_count == 1) {
+            //printf("\n count: %d cm_count: %d", count, cm_count);
+            I2C2::getInstance().writeReg(0xc0, 0x0, 0xF0);
+        }
+        else if (cm3_count == 4) {
+            //printf("\n count: %d cm_count: %d", count, cm_count);
+            I2C2::getInstance().writeReg(0xc0, 0x0, 0xF5);
+        }
+        else if (cm3_count == 7) {
+            //printf("\n count: %d cm_count: %d", count, cm_count);
+            I2C2::getInstance().writeReg(0xc0, 0x0, 0xF7);
+            LE.set(1, true);
+        }
+        //printf("\n cm_count: %d", cm_count);
+    }
+
 }
 
 /**
