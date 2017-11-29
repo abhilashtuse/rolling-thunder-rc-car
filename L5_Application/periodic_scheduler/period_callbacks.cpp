@@ -244,17 +244,22 @@ void period_10Hz(uint32_t count)
             dbc_encode_and_send_UPDATE_CURRENT_LOCATION(&cur_location);
             printf("\nSENT:lat:%f long:%f\n", geo_gps.GetLatitude(), geo_gps.GetLongitude());
             //   printf("Lat")
-            //   LE.toggle(3);
+            if(geo_gps.GetLatitude() == 0)
+                LE.set(3,0);
+            else
+                LE.toggle(3);
         }
 
+        //            LE.toggle(3);
     }
     if (start_from_master && geoController.isupdate_checkpoint_flag() == false) {
         geoController.ManipulateCheckpointList(geo_gps);
         GEO_DATA_t geo_cmd = { 0 };
         geo_cmd.GEO_bearing_angle = geoController.CalculateHeadingAngle(geo_gps, compass_bearing_angle);
-       // printf("\n heading_angle: %d", geo_cmd.GEO_bearing_angle);
+        // printf("\n heading_angle: %d", geo_cmd.GEO_bearing_angle);
         geo_cmd.GEO_distance_to_checkpoint =geoController.CalculateDistance(geo_gps);
         geo_cmd.GEO_destination_reached = geoController.isFinalDestinationReached(geo_cmd.GEO_distance_to_checkpoint) ? 1 : 0;
+        geo_cmd.COMPASS_bearing_angle = compass_bearing_angle;
 
         // Encode the CAN message's data bytes, get its header and set the CAN message's DLC and length
         if (dbc_encode_and_send_GEO_DATA(&geo_cmd)){
