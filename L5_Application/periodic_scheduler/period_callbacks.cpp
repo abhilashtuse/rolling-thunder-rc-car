@@ -34,7 +34,7 @@
 #include "io.hpp"
 #include "periodic_callback.h"
 #include "gpio.hpp"
-#include "genera_ted_can.h"
+#include "rt.h"
 /// This is the stack size used for each of the period tasks (1Hz, 10Hz, 100Hz, and 1000Hz)
 const uint32_t PERIOD_TASKS_STACK_SIZE_BYTES = (512 * 4);
 
@@ -53,7 +53,7 @@ int hb_flag = 0;
 bool period_init(void)
 {
 
-    CAN_init(can1, 100, 20, 20, NULL, NULL);
+    CAN_init(can1, 100, 50, 50, NULL, NULL);
     CAN_reset_bus(can1);
     CAN_bypass_filter_accept_all_msgs();
 
@@ -68,6 +68,7 @@ bool period_init(void)
      */
     Uart3 &u3 = Uart3::getInstance();
 	u3.init(9600, 512, 128);
+    u3.putChar('f');
     return true; // Must return true upon success
 }
 
@@ -86,14 +87,14 @@ void period_1Hz(uint32_t count)
 {
     if (CAN_is_bus_off(can1))
         CAN_reset_bus(can1);
-    if (hb_flag)
-        bridge_heartbeat();
-    // int flg = 0;
+    bridge_heartbeat();
 }
 
 void period_10Hz(uint32_t count)
 {
     static char *ptr = 0;
+    // static double lat = 0;
+    // static double lng = 0;
     /*
     * Send Update Current Location to CAN
     */
@@ -129,7 +130,7 @@ void period_100Hz(uint32_t count)
         LE.toggle(1);
         temp[1] = '\0';
         strcat(buffer,temp);
-        printf("buffer: %s\n", buffer);
+        // printf("buffer: %s\n", buffer);
         rd+=1;
     }
     
@@ -140,7 +141,7 @@ void period_100Hz(uint32_t count)
     {
         buffer[rd] = '\0';
         char *tmp = buffer;        
-        printf("Full payload: %s\n", buffer);
+        printf("Full payload: %s %d\n", buffer, rd);
         // parse_and_send(rd, ptr);
 
         /**
@@ -153,6 +154,13 @@ void period_100Hz(uint32_t count)
         printf("ERROR: Exceeds buffer limit.\n");
         rd = 0;
         u3.flush();
+    }
+    else if (rd == 2 && !success){
+        char    *st = buffer;
+        parse_and_send(&st);
+        rd = 0;
+        u3.flush();
+        buffer[0] = '\0';
     }
 }
 

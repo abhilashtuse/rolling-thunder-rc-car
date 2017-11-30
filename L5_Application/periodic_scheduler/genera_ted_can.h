@@ -26,7 +26,9 @@
 #define COORD_TURN_RIGHT 0x04
 #define COORD_REDUCE_SPEED 0x05
 #define COORD_ACCELERATE 0x06
-extern int hb_flag;
+
+// public:
+//     string DoubleToString(double val);
 
 uint8_t get_two(char *ptr);
 float decode_long(char *bytecode, unsigned int start, unsigned int end);

@@ -2,10 +2,16 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sstream>
 #include "io.hpp"
 #include "periodic_callback.h"
 #include "gpio.hpp"
-#include "rt.h"
+#include "genera_ted_can.h"
+
+// UPDATE_CURRENT_LOCATION__MIA_MS = 3000;
+// UPDATE_CURRENT_LOCATION__MIA_MSG = {0,0};
+
+using namespace std;
 
 bool dbc_app_send_can_msg(uint32_t mid, uint8_t dlc, uint8_t bytes[8])
 {
@@ -62,20 +68,16 @@ void    bridge_heartbeat()
     dbc_encode_and_send_BRIDGE_HB(&heartbeat);
 }
 
-void rx_bridge_hb(void)
+void    convert_to_app_format(char **str, double lat, double lng)
 {
-    // static inline bool dbc_decode_MASTER_CONTROL(MASTER_CONTROL_t *to, const uint8_t bytes[8], const dbc_msg_hdr_t *hdr)
-    can_msg_t can_rx_msg;
-    dbc_msg_hdr_t can_msg_hdr;
-    MASTER_CONTROL_t master_command;
-    
-    CAN_rx(can1, &can_rx_msg, 0);
-    if (can_rx_msg.msg_id == 100)
-    {
-        dbc_decode_MASTER_CONTROL(&master_command, can_rx_msg.data.bytes, &can_msg_hdr);
-        if (master_command.MASTER_CONTROL_cmd)
-            hb_flag = 1;
-    }
+    char ltr[10] = {0};
+    char lntr[12] = {0};
+    strcat(*str, "d0911");
+    sprintf(ltr, "%f", lat);
+    sprintf(lntr, "%f", lng);
+    strcat(*str, ltr);
+    strcat(*str, lntr);
+    strcat(*str, "e\0");
 }
 
 void rx_can(void)
@@ -96,26 +98,33 @@ void rx_can(void)
         can_msg_hdr.dlc = can_rx_msg.frame_fields.data_len;
         can_msg_hdr.mid = can_rx_msg.msg_id;
         dbc_decode_UPDATE_CURRENT_LOCATION(&curr_loc, can_rx_msg.data.bytes, &can_msg_hdr);
-        printf("Current Lat: %f\n", curr_loc.UPDATE_calculated_latitude);
-        printf("Current Lng: %f\n", curr_loc.UPDATE_calculated_longitude);
+        // printf("Current Lat: %f\n", curr_loc.UPDATE_calculated_latitude);
+        // printf("Current Lng: %f\n", curr_loc.UPDATE_calculated_longitude);
+
+        // char str[30] = {0};
+        // char *to_app = str;
+        // convert_to_app_format(&to_app, curr_loc.UPDATE_calculated_latitude, curr_loc.UPDATE_calculated_longitude);
         
-        dbc_handle_mia_UPDATE_CURRENT_LOCATION(&curr_loc, 10);
+        if(dbc_handle_mia_UPDATE_CURRENT_LOCATION(&curr_loc, 10))
+        {
+
+        }
         /*
         * Send coordinates to the app
         */
         // Uart3 &u3 = Uart3::getInstance();
-        // u3.putline()
+        // printf("To app: %s\n", to_app);
+        // u3.putline(to_app);
 	}
 }
 
 void    parse_and_send(char **str)
 {
-    // static uint8_t n_checkpoints = 0;
     char *buffer = *str;
     const char *t = "\0";
     uint8_t nb_lat = 0;
     uint8_t nb_long = 0;
-    // int read_n_checkpoints = 0;
+    static uint8_t n_checkpoints = 0;
 
     if (buffer[0] == 'a'){
         if (buffer[1] == '0')
@@ -129,21 +138,19 @@ void    parse_and_send(char **str)
             LE.toggle(4);//start car command sent
         }
     }
-    else if(buffer[0]=='b')
-    {
-        
-    }else if (buffer[0] == 'c'){ //sending checkpoints
+    else if (buffer[0] == 'c'){ //sending checkpoints
         buffer = buffer + 1;
+        // printf("P&S %s\n", buffer);
+        
         int size = 0;
         BRIDGE_START_STOP_t checkpoint = {0};
         t = strchrnul(buffer, 'c');
-        checkpoint.BRIDGE_FINAL_COORDINATE = (!t || !*t) ? 1 : 0;
-        // read_n_checkpoints = () ? 1 : 0;
+        // checkpoint.BRIDGE_FINAL_COORDINATE = (!t || !*t) ? 1 : 0;
         if (t - buffer < 24)
             return ;
         if (t - buffer > 24){
         //set checkpoints
-            // n_checkpoints = get_two(buffer);
+            n_checkpoints = get_two(buffer);
             buffer = buffer + 2;
             size+=2;
         }
@@ -173,14 +180,31 @@ void    parse_and_send(char **str)
         checkpoint.BRIDGE_CHECKPOINT_longitude = atof(lng);
         buffer = buffer + nb_long;
 
-        // n_checkpoints--;
-        
+        n_checkpoints--;
+        checkpoint.BRIDGE_FINAL_COORDINATE = (n_checkpoints <= 0) ? 1 : 0;
+
         dbc_encode_and_send_BRIDGE_START_STOP(&checkpoint);
 
         printf("Lat: %f\nLong: %f\nFinal?: %d\n",
         checkpoint.BRIDGE_CHECKPOINT_latitude,checkpoint.BRIDGE_CHECKPOINT_longitude,checkpoint.BRIDGE_FINAL_COORDINATE);
 
+        if (n_checkpoints <= 0)
+        {
+            char ptr[30] = {0};
+            char *to_app = ptr;
+            // int     i = 0;
+            convert_to_app_format(&to_app, checkpoint.BRIDGE_CHECKPOINT_latitude, checkpoint.BRIDGE_CHECKPOINT_longitude);
+            Uart3 &u3 = Uart3::getInstance();
+            // printf("Before Uart: %s\n", to_app);
+            // while(i < 27)
+            // {
+            //     u3.putChar(ptr[i]);
+            //     i++;
+            // }
+            // printf("Queue before %d\n", u3.getTxQueueSize());
+            u3.putline(to_app);
+            // printf("Queue after %d\n", u3.getTxQueueSize());
+        }
         *str = buffer;
-        // memmove(*str, *str + size,)
-    }
+    }       
 }
