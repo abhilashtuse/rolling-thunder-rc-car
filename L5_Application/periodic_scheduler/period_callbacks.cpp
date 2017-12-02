@@ -142,13 +142,8 @@ void period_100Hz(uint32_t count)
                     break;
                 }
 
+                motor_update.MOTOR_turn_angle = geo_data.GEO_bearing_angle/6;
                 motor_update.MOTOR_speed = 1.5;
-                if(geo_data.GEO_bearing_angle > 30)
-                    motor_update.MOTOR_turn_angle = 30;
-                else if(geo_data.GEO_bearing_angle < -30)
-                    motor_update.MOTOR_turn_angle = -30;
-                else
-                    motor_update.MOTOR_turn_angle = geo_data.GEO_bearing_angle;
 
                 dbc_encode_and_send_MOTOR_UPDATE(&motor_update);
             }
