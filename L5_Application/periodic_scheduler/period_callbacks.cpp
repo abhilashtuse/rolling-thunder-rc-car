@@ -83,6 +83,8 @@ SENSOR_DATA_t sensor_data;
 GEO_DATA_t geo_data;
 MOTOR_FEEDBACK_t motor_feedback;
 
+bool avoiding_obstacle = 0;
+
 void period_100Hz(uint32_t count)
 {
     can_msg_t can_msg;
@@ -118,16 +120,17 @@ void period_100Hz(uint32_t count)
         }
         else if(dbc_decode_SENSOR_DATA(&sensor_data, can_msg.data.bytes, &can_msg_hdr))
         {
-            if(start_sent)
+            if(start_sent && !geo_data.GEO_destination_reached)
             {
                 LE.toggle(4);
-                motor.update_motor(sensor_data, &motor_update,motor_feedback.MOTOR_actual_speed);
-                dbc_encode_and_send_MOTOR_UPDATE(&motor_update);
+                motor.update_motor(sensor_data, &motor_update,motor_feedback.MOTOR_actual_speed, &avoiding_obstacle);
+                if(avoiding_obstacle)
+                    dbc_encode_and_send_MOTOR_UPDATE(&motor_update);
             }
         }
         else if(dbc_decode_GEO_DATA(&geo_data, can_msg.data.bytes, &can_msg_hdr))
         {
-            if(start_sent)
+            if(start_sent && !avoiding_obstacle)
             {
                 LE.toggle(3);
 
@@ -140,7 +143,13 @@ void period_100Hz(uint32_t count)
                 }
 
                 motor_update.MOTOR_speed = 1.5;
-                motor_update.MOTOR_turn_angle = geo_data.GEO_bearing_angle/6;
+                if(geo_data.GEO_bearing_angle > 30)
+                    motor_update.MOTOR_turn_angle = 30;
+                else if(geo_data.GEO_bearing_angle < -30)
+                    motor_update.MOTOR_turn_angle = -30;
+                else
+                    motor_update.MOTOR_turn_angle = geo_data.GEO_bearing_angle;
+
                 dbc_encode_and_send_MOTOR_UPDATE(&motor_update);
             }
         }
