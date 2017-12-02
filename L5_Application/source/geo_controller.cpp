@@ -10,8 +10,12 @@
 #include "geo_controller.h"
 
 bool GeoController::isFinalDestinationReached(double distance) {
-    if (checkpointLatitude.size() == 1 && checkpointLongitude.size() == 1 && distance <= distance_threshold)
+    if (checkpointLatitude.size() == 1 && checkpointLongitude.size() == 1 && distance <= distance_threshold) {
+        updateCheckpointFlag = true;
+        checkpointLatitude.clear();
+        checkpointLongitude.clear();
         return true;
+    }
     return false;
 }
 
