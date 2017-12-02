@@ -235,19 +235,19 @@ void period_10Hz(uint32_t count)
         //  result=1;
         if (result && gps_str.find("$GPGGA") == 0) {
             //  printf("Received: %s\n", gps_str_arr);
-            geo_gps.ParseGPSString(gps_str);
+            bool ret = geo_gps.ParseGPSString(gps_str);
             //  double lat = geo_gps.GetLatitude();
             //double longi = geo_gps.GetLongitude();
             UPDATE_CURRENT_LOCATION_t cur_location = { 0 };
             cur_location.UPDATE_calculated_latitude = geo_gps.GetLatitude();
             cur_location.UPDATE_calculated_longitude = geo_gps.GetLongitude();
             dbc_encode_and_send_UPDATE_CURRENT_LOCATION(&cur_location);
-            printf("\nSENT:lat:%f long:%f\n", geo_gps.GetLatitude(), geo_gps.GetLongitude());
+            //printf("\nSENT:lat:%f long:%f\n", geo_gps.GetLatitude(), geo_gps.GetLongitude());
             //   printf("Lat")
-            if(geo_gps.GetLatitude() == 0)
-                LE.set(3,0);
-            else
+            if(ret)
                 LE.toggle(3);
+            else
+                LE.set(3,0);
         }
 
         //            LE.toggle(3);

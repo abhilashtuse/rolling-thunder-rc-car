@@ -66,7 +66,7 @@ double GeoGPS::DegreesToDecimal(int degrees, double minutes)
 
 // Input: GGA NMEA sentence
 // Output: set values in class.
-void GeoGPS::ParseGPSString(string GGA)
+bool GeoGPS::ParseGPSString(string GGA)
 {
     if (IsValidGGA(GGA)) {
         vector<std::string> elementVector = splitStringByComma(GGA);
@@ -78,8 +78,10 @@ void GeoGPS::ParseGPSString(string GGA)
             longitude = ExtractCoordinate(elementVector[4], false);
             if (elementVector[5] == "W")
                 longitude = -longitude;
+            return true;
         }
     }
+    return false;
 }
 
 int GeoGPS::StringToInt(string inputString)

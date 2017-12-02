@@ -31,7 +31,7 @@ public:
     void SetLongitude(double long_val);
     void SetLatitude(double lat_val);
     void SetValuesGGA(string GGA);
-    void ParseGPSString(std::string gps_str);
+    bool ParseGPSString(std::string gps_str);
     double ExtractCoordinate(string raw_coordinate, bool is_lat);
     bool IsValidGGA(const string GGASentence);
     string DoubleToString(double val);
