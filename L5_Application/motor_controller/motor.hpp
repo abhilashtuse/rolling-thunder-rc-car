@@ -54,6 +54,11 @@ class Motor : public SingletonTemplate<Motor>
         int transition_reverse();
 
 		friend void rps_cnt_hdlr(); //to update prev_rps_cnt and curr_rps_cnt;
+		float UPDATE_calculated_latitude;
+		        float UPDATE_calculated_longitude;
+		        uint16_t COMPASS_bearing_angle;
+		        float GEO_distance_to_checkpoint;
+		        float curr_mps_speed; //current real speed
     private:
         Motor();  ///< Private constructor of this Singleton class
         friend class SingletonTemplate<Motor>;  ///< Friend class used for Singleton Template
@@ -66,7 +71,7 @@ class Motor : public SingletonTemplate<Motor>
         float prev_can_speed; //last received speed from can message
         float prev_can_angle; //last received speed from can message
         float prev_speed_val; //last used speed to make curr_mps_speed close to can_speed
-        float curr_mps_speed; //current real speed
+
         int prev_rps_cnt; //previously read pedometer count
         uint64_t cur_clk; //Beginning time of RPM measurement
         int total_count; //total ticks from motor since start of program
@@ -94,6 +99,7 @@ Motor& return_current_instance();
 float get_speed_pwm(float speed);
 int get_angle_pwm(float angle);
 
+void update_TFT();
 #ifndef L5_APPLICATION_MOTOR_CONTROLLER_MOTOR_HPP_
 #define L5_APPLICATION_MOTOR_CONTROLLER_MOTOR_HPP_
 

@@ -7,6 +7,7 @@
  */
 
 #include "motor.hpp"
+#include "TFT_LCD.hpp"
 
 #define speed_margin 0.20
 
@@ -16,11 +17,14 @@
 #define duty_factor_spd (5.0/Traxxas_Max_Speed) //required pwm for 1ms => 15.0 +/- (1ms * duty_factor_spd)
 #define neutral_pwm 15.0
 
+
+float max_pwm = 5.0;
+
 float speed_step = 0.001;
 Motor::Motor()
 {
     use_prev_speed = false;
-    system_started = 0;
+    system_started = 1;
     static PWM motor(PWM::pwm2, 100);
     motor.set(15.0);
     MOTOR = &motor;
@@ -43,6 +47,10 @@ Motor::Motor()
     kp = 0;
     ki = 0;
     kd = 0;
+    UPDATE_calculated_latitude = 0;
+    UPDATE_calculated_longitude = 0;
+    COMPASS_bearing_angle = 0;
+    GEO_distance_to_checkpoint = 0;
 }
 
 bool Motor::init()
@@ -148,6 +156,9 @@ void Motor::get_can_vals() //to update curr_can_speed, curr_can_angle, prev_can_
     can_msg_t can_msg;
     MOTOR_UPDATE_t motor_can_msg;
     MASTER_CONTROL_t master_can_msg;
+    GEO_DATA_t geo_can_msg;
+    UPDATE_CURRENT_LOCATION_t loc_can_msg;
+
     while (CAN_rx(can1, &can_msg, 0))
     {
         // Form the message header from the metadata of the arriving message
@@ -155,7 +166,7 @@ void Motor::get_can_vals() //to update curr_can_speed, curr_can_angle, prev_can_
         can_msg_hdr.dlc = can_msg.frame_fields.data_len;
         can_msg_hdr.mid = can_msg.msg_id;
 
-        if(can_msg_hdr.mid == MASTER_CONTROL_HDR.mid)
+        /*if(can_msg_hdr.mid == MASTER_CONTROL_HDR.mid)
         {
 
             // Attempt to decode the message (brute force, but should use switch/case with MID)
@@ -174,9 +185,9 @@ void Motor::get_can_vals() //to update curr_can_speed, curr_can_angle, prev_can_
             }
 
         }
-        else if(can_msg_hdr.mid == MOTOR_UPDATE_HDR.mid)
+        else*/
+        if(can_msg_hdr.mid == MOTOR_UPDATE_HDR.mid)
         {
-
             // Attempt to decode the message (brute force, but should use switch/case with MID)
             if (dbc_decode_MOTOR_UPDATE(&motor_can_msg, can_msg.data.bytes, &can_msg_hdr))
             {
@@ -184,16 +195,48 @@ void Motor::get_can_vals() //to update curr_can_speed, curr_can_angle, prev_can_
                  curr_can_angle = ((float)motor_can_msg.MOTOR_turn_angle);
                  LE.on(2);
                  LD.setNumber((int)curr_can_speed);
+                 printf("Curr_can_speed = %f mps\n",Motor::getInstance().curr_can_speed);
+                 //break;
             }
         }
+        else if(can_msg_hdr.mid == GEO_DATA_HDR.mid)
+        {
+            // Attempt to decode the message (brute force, but should use switch/case with MID)
+                        if (dbc_decode_GEO_DATA(&geo_can_msg, can_msg.data.bytes, &can_msg_hdr))
+                        {
+                            /*int16_t GEO_bearing_angle;                ///< B8:0  Min: -180 Max: 180   Destination: MASTER,MOTOR
+                            float GEO_distance_to_checkpoint;         ///< B22:9  Min: 0 Max: 100   Destination: MASTER,MOTOR
+                            uint8_t GEO_destination_reached : 1;      ///< B23:23   Destination: MASTER,MOTOR
+                            uint16_t COMPASS_bearing_angle;           ///< B32:24  Min: 0 Max: 360   Destination: MASTER,MOTOR
+                            */
+                            COMPASS_bearing_angle = geo_can_msg.COMPASS_bearing_angle;
+                            GEO_distance_to_checkpoint = geo_can_msg.GEO_distance_to_checkpoint;
+                            //break;
+                        }
+        }
+        else if(can_msg_hdr.mid == UPDATE_CURRENT_LOCATION_HDR.mid)
+                {
+                    // Attempt to decode the message (brute force, but should use switch/case with MID)
+                                if (dbc_decode_UPDATE_CURRENT_LOCATION(&loc_can_msg, can_msg.data.bytes, &can_msg_hdr))
+                                {
+                                    /*float UPDATE_calculated_latitude;         ///< B27:0  Min: -90 Max: 90   Destination: BRIDGE,MOTOR
+                                    float UPDATE_calculated_longitude;        ///< B56:28  Min: -180 Max: 180   Destination: BRIDGE,MOTOR
+                                    */
+                                    UPDATE_calculated_latitude = loc_can_msg.UPDATE_calculated_latitude;
+                                    UPDATE_calculated_longitude = loc_can_msg.UPDATE_calculated_longitude;
+
+                                    //break;
+                                }
+                }
+
+        //dbc_decode_UPDATE_CURRENT_LOCATION
     }
 
-    if(dbc_handle_mia_MOTOR_UPDATE(&motor_can_msg, 20000))
+    /*if(dbc_handle_mia_MOTOR_UPDATE(&motor_can_msg, 20000))
          {
              //mia occurred, reset now;
             Motor::getInstance().stop_car();
-         }
-
+         }*/
 }
 
 int Motor::transition_reverse()
@@ -212,21 +255,22 @@ int Motor::transition_reverse()
 //prev_speed_val is speed to set
 void Motor::set_speed(int count) //convert speed to pwm, and handle (curr_mps_speed != 0 && (prev_can_speed > 0 && curr_can_speed < 0))
 {
-	    if(fabsf(prev_speed_val*duty_factor_spd) <= 5.0)
+
+	    if(fabsf(prev_speed_val*duty_factor_spd) <= max_pwm && fabsf(prev_speed_val*duty_factor_spd)>=0 )
         {
             //go more forward/reverse
             MOTOR->set(neutral_pwm + (prev_speed_val*duty_factor_spd));
         }
-        else if(prev_speed_val*duty_factor_spd < 0)
+        /*else if(prev_speed_val*duty_factor_spd < 0)
         {
             //runnning at max speed possible in reverse
-            MOTOR->set(neutral_pwm - (5.0));
+            MOTOR->set(neutral_pwm - (max_pwm));
         }
         else if(prev_speed_val*duty_factor_spd > 0)
         {
             //runnning at max speed possible in forward
-            MOTOR->set(neutral_pwm + (5.0));
-        }
+            MOTOR->set(neutral_pwm + (max_pwm));
+        }*/
 
         prev_can_speed = curr_can_speed;
         //Check if speed is accurate
@@ -369,6 +413,16 @@ void rps_cnt_hdlr() //to update prev_rps_cnt and curr_rps_cnt;
     M->total_count++;
 }
 
+void update_TFT()
+{
+
+    Motor *M = &Motor::getInstance();
+    send_GPS_data(M->UPDATE_calculated_latitude, M->UPDATE_calculated_longitude, M->GEO_distance_to_checkpoint);
+    send_Compass_data(M->COMPASS_bearing_angle);
+    send_Motor_data(M->curr_mps_speed);
+    send_Battery_data(90);
+}
+
 void send_heartbeat()
 {
     MOTOR_HB_t can_msg;
@@ -431,11 +485,12 @@ bool recv_system_start()
 
                 }
     }
-    if(dbc_handle_mia_MASTER_CONTROL(&master_can_msg, 100))
+    /*if(dbc_handle_mia_MASTER_CONTROL(&master_can_msg, 100))
              {
                  //mia occurred, reset now;
                 Motor::getInstance().stop_car();
              }
+    */
     return false;
 }
 

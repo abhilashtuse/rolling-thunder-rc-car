@@ -38,6 +38,8 @@
 #include "lpc_pwm.hpp"
 #include "can.h"
 #include "motor_controller/motor.hpp"
+#include "motor_controller/TFT_LCD.hpp"
+
 
 /*
 LE(1); //on if system started
@@ -59,22 +61,22 @@ const uint32_t PERIOD_TASKS_STACK_SIZE_BYTES = (512 * 4);
 const uint32_t PERIOD_MONITOR_TASK_STACK_SIZE_BYTES = (512 * 3);
 
 //flag to see first periodic function call or not
-bool first_time;
+//bool first_time;
 
 // Called once before the RTOS is started, this is a good place to initialize things once
 bool period_init(void)
 {
 	bool rc;
 
-	first_time = 1;
-
+	//first_time = 1;
+	TFT_LCD_init();
 	Motor::getInstance().init(); //reset motors of the car with all values set to 0
 
 	//Start interrupt to count wheel rotations
 	eint3_enable_port2(0, eint_falling_edge, rps_cnt_hdlr);
 
 	//Enable can1 to rx/tx messages
-	rc = CAN_init(can1, 100, 20, 20, NULL, NULL);
+	rc = CAN_init(can1, 100, 50, 50, NULL, NULL);
 
 	//printf("CAN init rc %d\n", rc);
 	CAN_bypass_filter_accept_all_msgs();
@@ -102,7 +104,7 @@ void period_1Hz(uint32_t count)
 		CAN_reset_bus(can1);
 	}
 
-	if(first_time)
+	/*if(first_time)
 	{
 	    if(recv_system_start())
 	    first_time = 0;
@@ -112,7 +114,11 @@ void period_1Hz(uint32_t count)
 	{
 	    send_heartbeat();
 	    LE.on(1);
-	}
+	}*/
+
+	send_heartbeat();
+	LE.on(1);
+
 }
 
 void period_10Hz(uint32_t count)
@@ -132,7 +138,8 @@ void period_10Hz(uint32_t count)
     LE.off(2);
     LE.off(3);
     LE.off(4);*/
-
+if(count%5==0)
+    update_TFT();
 }
 
 void period_100Hz(uint32_t count)
