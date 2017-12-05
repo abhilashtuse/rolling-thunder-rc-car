@@ -456,18 +456,19 @@ float battery_voltage()
 void update_TFT()
 {
     Motor *M = &Motor::getInstance();
-    send_GPS_data(M->UPDATE_calculated_latitude, M->UPDATE_calculated_longitude, M->GEO_distance_to_checkpoint);
+
+    //send_Battery_data((uint8_t )battery_voltage());
+    send_Battery_data(90);
     vTaskDelayMs(10);
     send_Compass_data(M->COMPASS_bearing_angle);
-    vTaskDelayMs(10);
-    send_Motor_data(M->curr_mps_speed);
-    vTaskDelayMs(10);
-    send_Battery_data((uint8_t)(battery_voltage()));
-    vTaskDelayMs(10);
+    vTaskDelayMs(30);
     //send_Sensor_data(M->middle_sensor, M->left_sensor, M->right_sensor);
     send_Sensor_data(10, 10, 10);
-    //send_Sensor_data(10, 10, 10);
     vTaskDelayMs(10);
+    send_Motor_data(M->curr_mps_speed);
+    vTaskDelayMs(30);
+    send_GPS_data(M->UPDATE_calculated_latitude, M->UPDATE_calculated_longitude, M->GEO_distance_to_checkpoint);
+
 }
 
 void send_heartbeat()
