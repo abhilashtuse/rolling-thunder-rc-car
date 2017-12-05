@@ -117,6 +117,7 @@ void period_1Hz(uint32_t count)
 	}*/
 
 	send_heartbeat();
+	update_TFT();
 	LE.on(1);
 
 }
@@ -138,8 +139,8 @@ void period_10Hz(uint32_t count)
     LE.off(2);
     LE.off(3);
     LE.off(4);*/
-if(count%5==0)
-    update_TFT();
+//if(count%5==0)
+//    update_TFT();
 }
 
 void period_100Hz(uint32_t count)
