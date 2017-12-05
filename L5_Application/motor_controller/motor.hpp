@@ -36,7 +36,7 @@ class Motor : public SingletonTemplate<Motor>
 {
     public:
         bool init();
-        void get_can_vals(); //to update curr_can_speed, curr_can_angle, prev_can_speed, prev_can_angle
+        void get_can_vals(uint32_t count); //to update curr_can_speed, curr_can_angle, prev_can_speed, prev_can_angle
         void set_speed(int count); //convert speed to pwm, and handle (curr_mps_speed != 0 && (prev_can_speed > 0 && curr_can_speed < 0))
         void set_angle(); //convert angle to pwm
         void check_real_speed_update(int count); //to check if curr_mps_speed == curr_can_speed, if not increase prev_speed_val
@@ -54,11 +54,15 @@ class Motor : public SingletonTemplate<Motor>
         int transition_reverse();
 
 		friend void rps_cnt_hdlr(); //to update prev_rps_cnt and curr_rps_cnt;
-		float UPDATE_calculated_latitude;
-		        float UPDATE_calculated_longitude;
-		        uint16_t COMPASS_bearing_angle;
-		        float GEO_distance_to_checkpoint;
-		        float curr_mps_speed; //current real speed
+        float UPDATE_calculated_latitude;
+        float UPDATE_calculated_longitude;
+        uint16_t COMPASS_bearing_angle;
+        float GEO_distance_to_checkpoint;
+        float curr_mps_speed; //current real speed
+        uint16_t middle_sensor;
+        uint8_t left_sensor;
+        uint8_t right_sensor;
+        uint8_t back_sensor;
     private:
         Motor();  ///< Private constructor of this Singleton class
         friend class SingletonTemplate<Motor>;  ///< Friend class used for Singleton Template
