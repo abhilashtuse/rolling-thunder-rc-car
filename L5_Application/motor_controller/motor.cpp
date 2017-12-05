@@ -460,7 +460,7 @@ void update_TFT()
     send_Battery_data(90);
     vTaskDelayMs(10);
     //send_Sensor_data(M->middle_sensor, M->left_sensor, M->right_sensor);
-    send_Sensor_data(10, 10, 10);
+    //send_Sensor_data(10, 10, 10);
     //send_Sensor_data(10, 10, 10);
     //vTaskDelayMs(10);
 }
