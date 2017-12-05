@@ -461,6 +461,7 @@ void update_TFT()
     vTaskDelayMs(10);
     //send_Sensor_data(M->middle_sensor, M->left_sensor, M->right_sensor);
     send_Sensor_data(10, 10, 10);
+    //send_Sensor_data(10, 10, 10);
     //vTaskDelayMs(10);
 }
 
