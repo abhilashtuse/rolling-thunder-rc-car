@@ -7,7 +7,6 @@
  */
 
 #include "motor.hpp"
-#include "TFT_LCD.hpp"
 
 #define speed_margin 0.20
 
@@ -448,6 +447,12 @@ void rps_cnt_hdlr() //to update prev_rps_cnt and curr_rps_cnt;
     M->total_count++;
 }
 
+float battery_voltage()
+{
+    float adc5 = adc0_get_reading(5) * (460/1460);
+
+    return adc5;
+}
 void update_TFT()
 {
     Motor *M = &Motor::getInstance();
@@ -457,12 +462,12 @@ void update_TFT()
     vTaskDelayMs(10);
     send_Motor_data(M->curr_mps_speed);
     vTaskDelayMs(10);
-    send_Battery_data(90);
+    send_Battery_data((uint8_t)(battery_voltage()));
     vTaskDelayMs(10);
     //send_Sensor_data(M->middle_sensor, M->left_sensor, M->right_sensor);
+    send_Sensor_data(10, 10, 10);
     //send_Sensor_data(10, 10, 10);
-    //send_Sensor_data(10, 10, 10);
-    //vTaskDelayMs(10);
+    vTaskDelayMs(10);
 }
 
 void send_heartbeat()

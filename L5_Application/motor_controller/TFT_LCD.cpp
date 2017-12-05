@@ -96,11 +96,7 @@ void send_Sensor_data(uint16_t middle_sensor, uint8_t left_sensor, uint8_t right
     byte_h = (char) ((middle_sensor >> 8) & 0xff);
     byte_l = (char) (middle_sensor & 0x00ff);
     write_object(WRITE_CMD, GAUGE, 0x02, byte_h, byte_l, chksum);
-    byte_h = (char) ((left_sensor >> 8) & 0xff);
-    byte_l = (char) (left_sensor & 0x00ff);
     write_object(WRITE_CMD, GAUGE, 0x01, 0x00, left_sensor, chksum);
-    byte_h = (char) ((right_sensor >> 8) & 0xff);
-    byte_l = (char) (right_sensor & 0x00ff);
     write_object(WRITE_CMD, GAUGE, 0x03, 0x00, right_sensor, chksum);
     memset(buff, 0, 12);
     sprintf(buff, "%d", left_sensor);

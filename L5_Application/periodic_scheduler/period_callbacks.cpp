@@ -39,7 +39,7 @@
 #include "can.h"
 #include "motor_controller/motor.hpp"
 #include "motor_controller/TFT_LCD.hpp"
-
+#include "adc0.h"
 
 /*
 LE(1); //on if system started
@@ -67,7 +67,6 @@ const uint32_t PERIOD_MONITOR_TASK_STACK_SIZE_BYTES = (512 * 3);
 bool period_init(void)
 {
 	bool rc;
-
 	//first_time = 1;
 	TFT_LCD_init();
 	Motor::getInstance().init(); //reset motors of the car with all values set to 0

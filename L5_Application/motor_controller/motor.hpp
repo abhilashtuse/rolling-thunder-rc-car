@@ -19,6 +19,8 @@
 #include "math.h"
 #include "inttypes.h"
 #include "stdint.h"
+#include "TFT_LCD.hpp"
+#include "adc0.h"
 
 /*
 LE(1); //on if system started
@@ -104,6 +106,8 @@ float get_speed_pwm(float speed);
 int get_angle_pwm(float angle);
 
 void update_TFT();
+float battery_voltage();
+
 #ifndef L5_APPLICATION_MOTOR_CONTROLLER_MOTOR_HPP_
 #define L5_APPLICATION_MOTOR_CONTROLLER_MOTOR_HPP_
 
