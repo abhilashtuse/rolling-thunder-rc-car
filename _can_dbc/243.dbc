@@ -45,10 +45,10 @@ BO_ 150 BRIDGE_START_STOP: 8 BRIDGE
  SG_ BRIDGE_FINAL_COORDINATE : 58|1@1+ (1,0) [0|0] "" GEO,MASTER
 
 BO_ 200 SENSOR_DATA: 5 SENSOR
- SG_ SENSOR_left_sensor : 0|8@1+ (1,0) [0|0] "Inches" MASTER,BRIDGE
- SG_ SENSOR_middle_sensor : 8|9@1+ (1,0) [0|0] "Inches" MASTER,BRIDGE
- SG_ SENSOR_right_sensor : 17|8@1+ (1,0) [0|0] "Inches" MASTER,BRIDGE
- SG_ SENSOR_back_sensor : 25|9@1+ (1,0) [0|0] "Inches" MASTER,BRIDGE
+ SG_ SENSOR_left_sensor : 0|8@1+ (1,0) [0|0] "Inches" MASTER,BRIDGE,MOTOR
+ SG_ SENSOR_middle_sensor : 8|9@1+ (1,0) [0|0] "Inches" MASTER,BRIDGE,MOTOR
+ SG_ SENSOR_right_sensor : 17|8@1+ (1,0) [0|0] "Inches" MASTER,BRIDGE,MOTOR
+ SG_ SENSOR_back_sensor : 25|9@1+ (1,0) [0|0] "Inches" MASTER,BRIDGE,MOTOR
 
 BO_ 250 GEO_DATA: 5 GEO
  SG_ GEO_bearing_angle : 0|9@1- (1,0) [-180|180] "degrees" MASTER,MOTOR

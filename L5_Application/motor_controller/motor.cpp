@@ -170,7 +170,7 @@ void Motor::get_can_vals(uint32_t count) //to update curr_can_speed, curr_can_an
     MASTER_CONTROL_t master_can_msg;
     GEO_DATA_t geo_can_msg;
     UPDATE_CURRENT_LOCATION_t loc_can_msg;
-    //SENSOR_DATA_t sensor_can_msg;
+    SENSOR_DATA_t sensor_can_msg;
 
     while (CAN_rx(can1, &can_msg, 0))
     {
@@ -246,16 +246,11 @@ void Motor::get_can_vals(uint32_t count) //to update curr_can_speed, curr_can_an
                 //break;
             }
         }
-        /*else if(can_msg_hdr.mid == SENSOR_DATA_HDR.mid)
+        else if(can_msg_hdr.mid == SENSOR_DATA_HDR.mid)
         {
             // Attempt to decode the message (brute force, but should use switch/case with MID)
             if (dbc_decode_SENSOR_DATA(&sensor_can_msg, can_msg.data.bytes, &can_msg_hdr))
             {
-                int16_t GEO_bearing_angle;                ///< B8:0  Min: -180 Max: 180   Destination: MASTER,MOTOR
-                                    float GEO_distance_to_checkpoint;         ///< B22:9  Min: 0 Max: 100   Destination: MASTER,MOTOR
-                                    uint8_t GEO_destination_reached : 1;      ///< B23:23   Destination: MASTER,MOTOR
-                                    uint16_t COMPASS_bearing_angle;           ///< B32:24  Min: 0 Max: 360   Destination: MASTER,MOTOR
-
                 left_sensor = sensor_can_msg.SENSOR_left_sensor;
                 right_sensor = sensor_can_msg.SENSOR_right_sensor;
                 middle_sensor = sensor_can_msg.SENSOR_middle_sensor;
@@ -263,7 +258,6 @@ void Motor::get_can_vals(uint32_t count) //to update curr_can_speed, curr_can_an
                 //break;
             }
         }
-*/
         //dbc_decode_UPDATE_CURRENT_LOCATION
     }
 
@@ -462,8 +456,8 @@ void update_TFT()
     vTaskDelayMs(10);
     send_Compass_data(M->COMPASS_bearing_angle);
     vTaskDelayMs(30);
-    //send_Sensor_data(M->middle_sensor, M->left_sensor, M->right_sensor);
-    send_Sensor_data(10, 10, 10);
+    send_Sensor_data(M->middle_sensor, M->left_sensor, M->right_sensor);
+    //send_Sensor_data(10, 10, 10);
     vTaskDelayMs(10);
     send_Motor_data(M->curr_mps_speed);
     vTaskDelayMs(30);
