@@ -48,7 +48,7 @@ const uint32_t PERIOD_DISPATCHER_TASK_STACK_SIZE_BYTES = (512 * 3);
 int rd = 0;
 char buffer[512];
 QueueHandle_t qh = 0;
-int hb_flag = 0;
+
 /// Called once before the RTOS is started, this is a good place to initialize things once
 bool period_init(void)
 {
@@ -59,7 +59,6 @@ bool period_init(void)
 
     /**
      * FreeRTOS Queue
-     * 
     */
     qh = xQueueCreate(10, sizeof(char *));  
     /*
@@ -68,7 +67,6 @@ bool period_init(void)
      */
     Uart3 &u3 = Uart3::getInstance();
 	u3.init(9600, 512, 128);
-    u3.putChar('f');
     return true; // Must return true upon success
 }
 
@@ -93,12 +91,10 @@ void period_1Hz(uint32_t count)
 void period_10Hz(uint32_t count)
 {
     static char *ptr = 0;
-    // static double lat = 0;
-    // static double lng = 0;
     /*
-    * Send Update Current Location to CAN
+    * Get Update Current Location from CAN
     */
-    // rx_can();
+    rx_can();
 
     // if(!ptr){
     xQueueReceive(qh, &ptr, 0);
@@ -112,11 +108,9 @@ void period_10Hz(uint32_t count)
 
 void period_100Hz(uint32_t count)
 {
-    // LE.toggle(3);
     /**
-     * Read Bluetooth data
-     * 
-     * */
+    * Read Bluetooth data
+    */
     Uart3 &u3 = Uart3::getInstance();
     char temp[2] = {0};
     bool success = false;
@@ -151,7 +145,7 @@ void period_100Hz(uint32_t count)
         rd = 0;
         u3.flush();
     }else if (rd >= 512){
-        printf("ERROR: Exceeds buffer limit.\n");
+        printf("ERROR: Exceeds buffer limit. :( :( :( :( :( :( :( :( :( :(\n");
         rd = 0;
         u3.flush();
     }

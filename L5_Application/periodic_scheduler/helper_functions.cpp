@@ -6,7 +6,7 @@
 #include "io.hpp"
 #include "periodic_callback.h"
 #include "gpio.hpp"
-#include "genera_ted_can.h"
+#include "rt.h"
 
 // UPDATE_CURRENT_LOCATION__MIA_MS = 3000;
 // UPDATE_CURRENT_LOCATION__MIA_MSG = {0,0};
@@ -72,7 +72,7 @@ void    convert_to_app_format(char **str, double lat, double lng)
 {
     char ltr[10] = {0};
     char lntr[12] = {0};
-    strcat(*str, "d0911");
+    strcat(*str, "0911");
     sprintf(ltr, "%f", lat);
     sprintf(lntr, "%f", lng);
     strcat(*str, ltr);
@@ -98,12 +98,10 @@ void rx_can(void)
         can_msg_hdr.dlc = can_rx_msg.frame_fields.data_len;
         can_msg_hdr.mid = can_rx_msg.msg_id;
         dbc_decode_UPDATE_CURRENT_LOCATION(&curr_loc, can_rx_msg.data.bytes, &can_msg_hdr);
-        // printf("Current Lat: %f\n", curr_loc.UPDATE_calculated_latitude);
-        // printf("Current Lng: %f\n", curr_loc.UPDATE_calculated_longitude);
 
-        // char str[30] = {0};
-        // char *to_app = str;
-        // convert_to_app_format(&to_app, curr_loc.UPDATE_calculated_latitude, curr_loc.UPDATE_calculated_longitude);
+        char str[30] = {0};
+        char *to_app = str;
+        convert_to_app_format(&to_app, curr_loc.UPDATE_calculated_latitude, curr_loc.UPDATE_calculated_longitude);
         
         if(dbc_handle_mia_UPDATE_CURRENT_LOCATION(&curr_loc, 10))
         {
@@ -112,9 +110,9 @@ void rx_can(void)
         /*
         * Send coordinates to the app
         */
-        // Uart3 &u3 = Uart3::getInstance();
         // printf("To app: %s\n", to_app);
-        // u3.putline(to_app);
+        Uart3 &u3 = Uart3::getInstance();
+        u3.putline(to_app);
 	}
 }
 
@@ -129,7 +127,7 @@ void    parse_and_send(char **str)
     if (buffer[0] == 'a'){
         if (buffer[1] == '0')
         {
-            start_car(0.0,0.0,0);
+            start_car(0,0,0);
             LE.toggle(2);//stop car command sent
         }
         else
@@ -140,7 +138,6 @@ void    parse_and_send(char **str)
     }
     else if (buffer[0] == 'c'){ //sending checkpoints
         buffer = buffer + 1;
-        // printf("P&S %s\n", buffer);
         
         int size = 0;
         BRIDGE_START_STOP_t checkpoint = {0};
@@ -151,6 +148,7 @@ void    parse_and_send(char **str)
         if (t - buffer > 24){
         //set checkpoints
             n_checkpoints = get_two(buffer);
+            LD.setNumber(n_checkpoints);
             buffer = buffer + 2;
             size+=2;
         }
@@ -188,23 +186,6 @@ void    parse_and_send(char **str)
         printf("Lat: %f\nLong: %f\nFinal?: %d\n",
         checkpoint.BRIDGE_CHECKPOINT_latitude,checkpoint.BRIDGE_CHECKPOINT_longitude,checkpoint.BRIDGE_FINAL_COORDINATE);
 
-        if (n_checkpoints <= 0)
-        {
-            char ptr[30] = {0};
-            char *to_app = ptr;
-            // int     i = 0;
-            convert_to_app_format(&to_app, checkpoint.BRIDGE_CHECKPOINT_latitude, checkpoint.BRIDGE_CHECKPOINT_longitude);
-            Uart3 &u3 = Uart3::getInstance();
-            // printf("Before Uart: %s\n", to_app);
-            // while(i < 27)
-            // {
-            //     u3.putChar(ptr[i]);
-            //     i++;
-            // }
-            // printf("Queue before %d\n", u3.getTxQueueSize());
-            u3.putline(to_app);
-            // printf("Queue after %d\n", u3.getTxQueueSize());
-        }
         *str = buffer;
     }       
 }
