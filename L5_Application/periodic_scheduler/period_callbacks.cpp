@@ -264,14 +264,16 @@ void period_10Hz(uint32_t count)
             bool ret = geo_gps.ParseGPSString(gps_str);
             //  double lat = geo_gps.GetLatitude();
             //double longi = geo_gps.GetLongitude();
-            UPDATE_CURRENT_LOCATION_t cur_location = { 0 };
-            cur_location.UPDATE_calculated_latitude = geo_gps.GetLatitude();
-            cur_location.UPDATE_calculated_longitude = geo_gps.GetLongitude();
-            dbc_encode_and_send_UPDATE_CURRENT_LOCATION(&cur_location);
-            // printf("\nSENT:lat:%f long:%f\n", geo_gps.GetLatitude(), geo_gps.GetLongitude());
-            //   printf("Lat")
-            if(ret)
+            if (ret) {
+                UPDATE_CURRENT_LOCATION_t cur_location = { 0 };
+                cur_location.UPDATE_calculated_latitude = geo_gps.GetLatitude();
+                cur_location.UPDATE_calculated_longitude = geo_gps.GetLongitude();
+                dbc_encode_and_send_UPDATE_CURRENT_LOCATION(&cur_location);
+                // printf("\nSENT:lat:%f long:%f\n", geo_gps.GetLatitude(), geo_gps.GetLongitude());
+                //   printf("Lat")
+
                 LE.toggle(3);
+            }
             else
                 LE.set(3,0);
         }
