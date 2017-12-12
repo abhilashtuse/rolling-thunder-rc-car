@@ -50,11 +50,10 @@ BO_ 200 SENSOR_DATA: 5 SENSOR
  SG_ SENSOR_right_sensor : 17|8@1+ (1,0) [0|0] "Inches" MASTER,BRIDGE,MOTOR
  SG_ SENSOR_back_sensor : 25|9@1+ (1,0) [0|0] "Inches" MASTER,BRIDGE,MOTOR
 
-BO_ 250 GEO_DATA: 5 GEO
+BO_ 250 GEO_DATA: 4 GEO
  SG_ GEO_bearing_angle : 0|9@1- (1,0) [-180|180] "degrees" MASTER,MOTOR
  SG_ GEO_distance_to_checkpoint : 9|16@1+ (0.01,0) [0|500] "meters" MASTER,MOTOR
  SG_ GEO_destination_reached : 25|1@1+ (1,0) [0|0] "" MASTER,MOTOR
- SG_ COMPASS_bearing_angle : 26|9@1+ (1,0) [0|360] "degrees" MASTER,MOTOR
 
 BO_ 300 MOTOR_UPDATE: 2 MASTER
  SG_ MOTOR_speed : 0|10@1+ (0.1,-34) [-34.0|34.0] "mps" MOTOR
@@ -67,6 +66,9 @@ BO_ 350 MOTOR_FEEDBACK: 2 MOTOR
 BO_ 400 UPDATE_CURRENT_LOCATION: 8 GEO
  SG_ UPDATE_calculated_latitude : 0|28@1+ (0.000001,-90.000000) [-90|90] "" BRIDGE,MOTOR
  SG_ UPDATE_calculated_longitude : 28|29@1+ (0.000001,-180.000000) [-180|180] "" BRIDGE,MOTOR
+
+BO_ 450 UPDATE_COMPASS_BEARING: 2 GEO
+ SG_ COMPASS_bearing_angle : 0|9@1+ (1,0) [0|360] "degrees" MOTOR
 
 BO_ 500 BRIDGE_HB: 1 BRIDGE
  SG_ BRIDGE_heartbeat : 0|2@1+ (1,0) [0|0] "" MASTER
