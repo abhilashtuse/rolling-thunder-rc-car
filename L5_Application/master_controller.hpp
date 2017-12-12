@@ -10,7 +10,7 @@
 class motor
 {
 	public:
-	void update_motor(SENSOR_DATA_t sensor_data, MOTOR_UPDATE_t *motor_update, float actual_speed, bool *avoid_obstacle);
+	void update_motor(SENSOR_DATA_t sensor_data, MOTOR_UPDATE_t *motor_update, float actual_speed, bool *avoid_obstacle, bool turn_towards);
 };
 
 #endif /* MASTER_CONTROLLER_H */

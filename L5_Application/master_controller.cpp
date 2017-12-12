@@ -15,7 +15,7 @@ bool keep_reversing_middle = 0;
 bool keep_reversing_lr = 0;
 bool keep_reversing_turn = 0;
 
-void motor::update_motor(SENSOR_DATA_t sensor_data, MOTOR_UPDATE_t *motor_update, float actual_speed, bool *avoiding_obstacle)
+void motor::update_motor(SENSOR_DATA_t sensor_data, MOTOR_UPDATE_t *motor_update, float actual_speed, bool *avoiding_obstacle, bool turn_towards)
 {
     if((sensor_data.SENSOR_middle_sensor < front_threshold) || (sensor_data.SENSOR_left_sensor < left_threshold) || (sensor_data.SENSOR_right_sensor < right_threshold))
     {
@@ -31,7 +31,7 @@ void motor::update_motor(SENSOR_DATA_t sensor_data, MOTOR_UPDATE_t *motor_update
                 motor_update->MOTOR_speed = REVERSE_SPEED;
                 keep_reversing_lr = 1;
             }
-            motor_update->MOTOR_turn_angle = TURN_ANGLE;
+            motor_update->MOTOR_turn_angle = (turn_towards) ? TURN_ANGLE : -TURN_ANGLE;
         }
         else if((sensor_data.SENSOR_left_sensor < left_threshold || sensor_data.SENSOR_right_sensor < right_threshold) && sensor_data.SENSOR_middle_sensor <= 20)
         {
@@ -48,14 +48,7 @@ void motor::update_motor(SENSOR_DATA_t sensor_data, MOTOR_UPDATE_t *motor_update
         }
         else if((sensor_data.SENSOR_left_sensor < left_threshold || sensor_data.SENSOR_right_sensor < right_threshold) && (sensor_data.SENSOR_middle_sensor > 20 && sensor_data.SENSOR_middle_sensor < front_critical_threshold))
         {
-            if(sensor_data.SENSOR_left_sensor < left_threshold)
-            {
-                motor_update->MOTOR_turn_angle = TURN_ANGLE;
-            }
-            else if(sensor_data.SENSOR_right_sensor < right_threshold)
-            {
-                motor_update->MOTOR_turn_angle = -TURN_ANGLE;
-            }
+            motor_update->MOTOR_turn_angle = (turn_towards) ? TURN_ANGLE : -TURN_ANGLE;
             motor_update->MOTOR_speed = FORWARD_SPEED;
             keep_reversing_lr = 0;
             keep_reversing_middle = 0;
@@ -81,22 +74,9 @@ void motor::update_motor(SENSOR_DATA_t sensor_data, MOTOR_UPDATE_t *motor_update
         }
         else if(sensor_data.SENSOR_middle_sensor > front_critical_threshold && sensor_data.SENSOR_middle_sensor < front_threshold)
         {
-            // Slow down
+            // Turn towards the destination
             motor_update->MOTOR_speed = FORWARD_SPEED;
-            if(sensor_data.SENSOR_left_sensor >= 40 && sensor_data.SENSOR_right_sensor <= 40)
-            {
-                motor_update->MOTOR_turn_angle = TURN_ANGLE;
-            }
-            else if(sensor_data.SENSOR_right_sensor >= 40 && sensor_data.SENSOR_left_sensor <= 40)
-            {
-                motor_update->MOTOR_turn_angle = -TURN_ANGLE;
-            }
-            else if(sensor_data.SENSOR_left_sensor < 40 && sensor_data.SENSOR_right_sensor < 40)
-            {
-                motor_update->MOTOR_turn_angle = (sensor_data.SENSOR_left_sensor > sensor_data.SENSOR_right_sensor)? TURN_ANGLE : -TURN_ANGLE;
-            }
-            else
-                motor_update->MOTOR_turn_angle = TURN_ANGLE;
+            motor_update->MOTOR_turn_angle = (turn_towards) ? TURN_ANGLE : -TURN_ANGLE;
 
             keep_reversing_lr = 0;
             keep_reversing_middle = 0;
@@ -115,13 +95,11 @@ void motor::update_motor(SENSOR_DATA_t sensor_data, MOTOR_UPDATE_t *motor_update
                 keep_reversing_middle = 1;
             }
 
-            motor_update->MOTOR_turn_angle = TURN_ANGLE;
+            motor_update->MOTOR_turn_angle = (turn_towards) ? TURN_ANGLE : -TURN_ANGLE;;
         }
     }
     else
     {
-        motor_update->MOTOR_speed = FORWARD_SPEED;
-        motor_update->MOTOR_turn_angle = 0;
         keep_reversing_lr = 0;
         keep_reversing_middle = 0;
         keep_reversing_turn = 0;

@@ -83,6 +83,7 @@ SENSOR_DATA_t sensor_data;
 GEO_DATA_t geo_data;
 MOTOR_FEEDBACK_t motor_feedback;
 
+bool turn = 0;
 bool avoiding_obstacle = 0;
 
 void period_100Hz(uint32_t count)
@@ -123,7 +124,7 @@ void period_100Hz(uint32_t count)
             if(start_sent && !geo_data.GEO_destination_reached)
             {
                 LE.toggle(4);
-                motor.update_motor(sensor_data, &motor_update,motor_feedback.MOTOR_actual_speed, &avoiding_obstacle);
+                motor.update_motor(sensor_data, &motor_update,motor_feedback.MOTOR_actual_speed, &avoiding_obstacle, turn);
                 if(avoiding_obstacle)
                     dbc_encode_and_send_MOTOR_UPDATE(&motor_update);
             }
@@ -144,6 +145,7 @@ void period_100Hz(uint32_t count)
 
                 motor_update.MOTOR_turn_angle = geo_data.GEO_bearing_angle/6;
                 motor_update.MOTOR_speed = 1.5;
+                turn = (geo_data.GEO_bearing_angle > 0)? 1 : 0;
 
                 dbc_encode_and_send_MOTOR_UPDATE(&motor_update);
             }
