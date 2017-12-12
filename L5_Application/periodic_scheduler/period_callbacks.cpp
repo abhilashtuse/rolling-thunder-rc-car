@@ -42,12 +42,11 @@
 #include "adc0.h"
 
 /*
-LE(1); //on if system started
-LE(2); //on if any can_msg is successfully decoded
-LE(3); //on if sending Motor_heartbeat over can
-LE(4); //on if sending Motor_feedback over can
-*/
-
+ LE(1); //on if system started
+ LE(2); //on if any can_msg is successfully decoded
+ LE(3); //on if sending Motor_heartbeat over can
+ LE(4); //on if sending Motor_feedback over can
+ */
 
 /// This is the stack size used for each of the period tasks (1Hz, 10Hz, 100Hz, and 1000Hz)
 const uint32_t PERIOD_TASKS_STACK_SIZE_BYTES = (512 * 4);
@@ -66,20 +65,20 @@ const uint32_t PERIOD_MONITOR_TASK_STACK_SIZE_BYTES = (512 * 3);
 // Called once before the RTOS is started, this is a good place to initialize things once
 bool period_init(void)
 {
-	bool rc;
-	//first_time = 1;
-	TFT_LCD_init();
-	Motor::getInstance().init(); //reset motors of the car with all values set to 0
+    bool rc;
+    //first_time = 1;
+    TFT_LCD_init();
+    Motor::getInstance().init(); //reset motors of the car with all values set to 0
 
-	//Start interrupt to count wheel rotations
-	eint3_enable_port2(0, eint_falling_edge, rps_cnt_hdlr);
+    //Start interrupt to count wheel rotations
+    eint3_enable_port2(0, eint_falling_edge, rps_cnt_hdlr);
 
-	//Enable can1 to rx/tx messages
-	rc = CAN_init(can1, 100, 50, 50, NULL, NULL);
+    //Enable can1 to rx/tx messages
+    rc = CAN_init(can1, 100, 50, 50, NULL, NULL);
 
-	//printf("CAN init rc %d\n", rc);
-	CAN_bypass_filter_accept_all_msgs();
-	CAN_reset_bus(can1);
+    //printf("CAN init rc %d\n", rc);
+    CAN_bypass_filter_accept_all_msgs();
+    CAN_reset_bus(can1);
 
     return true; // Must return true upon success
 }
@@ -97,55 +96,56 @@ bool period_reg_tlm(void)
  */
 void period_1Hz(uint32_t count)
 {
-   	//If CAN bus turns off, re-enable it
-	if (CAN_is_bus_off(can1))
-	{
-		CAN_reset_bus(can1);
-	}
+    //If CAN bus turns off, re-enable it
+    if (CAN_is_bus_off(can1)) {
+        CAN_reset_bus(can1);
+    }
 
-	/*if(first_time)
-	{
-	    if(recv_system_start())
-	    first_time = 0;
-	}
+    /*if(first_time)
+     {
+     if(recv_system_start())
+     first_time = 0;
+     }
 
-	if(Motor::getInstance().system_started)
-	{
-	    send_heartbeat();
-	    LE.on(1);
-	}*/
+     if(Motor::getInstance().system_started)
+     {
+     send_heartbeat();
+     LE.on(1);
+     }*/
 
-	send_heartbeat();
-	update_TFT();
-	LE.on(1);
-
+    send_heartbeat();
+    update_TFT();
+    LE.on(1);
+    printf("\nADC values ==========\n");
+    for (int i = 0; i <= 7; i++)
+        printf("adc0_%d = %d\n", i, adc0_get_reading(i));
+    printf("\n");
 }
 
 void period_10Hz(uint32_t count)
 {
-	 /*if (Motor::getInstance().system_started)
-    {
-        Motor::getInstance().motor_periodic(count);
-        send_feedback();
-        LE.on(1);
-    }
-    else
-    {
-        Motor::getInstance().init(); //reset car
-    }
+    /*if (Motor::getInstance().system_started)
+     {
+     Motor::getInstance().motor_periodic(count);
+     send_feedback();
+     LE.on(1);
+     }
+     else
+     {
+     Motor::getInstance().init(); //reset car
+     }
 
-	LE.off(1);
-    LE.off(2);
-    LE.off(3);
-    LE.off(4);*/
+     LE.off(1);
+     LE.off(2);
+     LE.off(3);
+     LE.off(4);*/
 //if(count%5==0)
 //    update_TFT();
 }
 
 void period_100Hz(uint32_t count)
 {
-    if (Motor::getInstance().system_started)
-    {
+    if (Motor::getInstance().system_started) {
         Motor::getInstance().motor_periodic(count);
         send_feedback();
         LE.on(1);
