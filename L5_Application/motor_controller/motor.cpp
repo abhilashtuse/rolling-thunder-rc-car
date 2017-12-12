@@ -316,16 +316,16 @@ void Motor::check_real_speed_update(int count) //to check if curr_mps_speed == c
     if(curr_can_speed == 0.0)
     {
 		//to hard break, first set to MAX opposite speed (ex: full REVERSE if going forward)
-		if (this->prev_can_speed > 0)
-		{
-			//max reverse
-			MOTOR->set(10);
-			vTaskDelayMs(4);
-		} else if (this->prev_can_speed < 0) {
-			//max forward
-			MOTOR->set(20);
-			vTaskDelayMs(2);
-		}
+//		if (this->prev_can_speed > 0)
+//		{
+//			//max reverse
+//			MOTOR->set(10);
+//			vTaskDelayMs(4);
+//		} else if (this->prev_can_speed < 0) {
+//			//max forward
+//			MOTOR->set(20);
+//			vTaskDelayMs(2);
+//		}
 		//Delay shorter than length of shortest periodic (10ms)
 		//udelay(10);
         this->stop_car();
@@ -380,7 +380,7 @@ void Motor::motor_pid()
     }
     //In order to reverse, sometimes we need to reset the speed to 0
     //Reverse speeds only work if you step from 0
-    if(fabsf(prev_speed_val) > 5.0 && curr_mps_speed == 0 && curr_can_speed != 0)
+    if(fabsf(prev_speed_val) > 10.0 && curr_mps_speed == 0 && curr_can_speed != 0)
     {
         prev_speed_val = 0;
     }
@@ -429,16 +429,23 @@ void rps_cnt_hdlr() //to update prev_rps_cnt and curr_rps_cnt;
 
 float battery_voltage()
 {
-    float adc5 = adc0_get_reading(5) * (460 / 1460);
-
-    return adc5;
+	//12 bit ADC, max value is 4096
+	float maxADC = 4096;
+	//Voltage divider ratio from battery to ADC (to get battery voltage < 3.3)
+	float volt_div = 460/1460;
+	//percentage the adc reads compared to the input voltage of 3.3
+    float adc5 = adc0_get_reading(5) / maxADC;
+    //battery voltage is 8.4*adc percentage
+    float battery_voltage = adc5 / volt_div;
+    printf("battery_voltage: %f\n", battery_voltage);
+    return battery_voltage;
 }
 void update_TFT()
 {
     Motor *M = &Motor::getInstance();
 
-    //send_Battery_data((uint8_t )battery_voltage());
-    send_Battery_data(90);
+    send_Battery_data((uint8_t )battery_voltage());
+    //send_Battery_data(90);
     vTaskDelayMs(10);
     send_Compass_data(M->COMPASS_bearing_angle);
     vTaskDelayMs(30);

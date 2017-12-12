@@ -56,8 +56,8 @@ void write_object(char command, char obj_type, char obj_index, char byte2, char 
     u2.getChar(&ack, 0);
     LD.setNumber(1);
     chksum = 0x00;
-    byte_h = 0x00;
-    byte_l = 0x00;
+//    byte_h = 0x00;
+//    byte_l = 0x00;
 }
 
 /*
