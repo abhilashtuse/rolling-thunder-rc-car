@@ -59,7 +59,6 @@ const uint32_t PERIOD_TASKS_STACK_SIZE_BYTES = (512 * 4);
  * printf inside these functions, you need about 1500 bytes minimum
  */
 const uint32_t PERIOD_MONITOR_TASK_STACK_SIZE_BYTES = (512 * 3);
-static bool start_from_master = false;
 static GeoGPS geo_gps;
 static GeoCompass geo_compass;
 static GeoController geoController;
@@ -212,16 +211,10 @@ void period_1Hz(uint32_t count)
         printf("\nResetting can bus.");
         CAN_reset_bus(can1);
     }
-    if (start_from_master) {
-        GEO_HB_t geo_hb_cmd = { 0 };
-        geo_hb_cmd.GEO_heartbeat = 1;
-        // Encode the CAN message's data bytes, get its header and set the CAN message's DLC and length
-        dbc_encode_and_send_GEO_HB(&geo_hb_cmd);
-        //        if (dbc_encode_and_send_GEO_HB(&geo_hb_cmd))
-        //            printf("\nsent hb");
-        //        else
-        //            printf("\ntx failed");
-    }
+    GEO_HB_t geo_hb_cmd = { 0 };
+    geo_hb_cmd.GEO_heartbeat = 1;
+    dbc_encode_and_send_GEO_HB(&geo_hb_cmd);
+
 #if PRINT_CHECKPOINTS
     if (geoController.isupdate_checkpoint_flag() == false) {
         list<double> lat = geoController.getcheckpoint_latitude();
@@ -279,7 +272,7 @@ void period_10Hz(uint32_t count)
             else
                 LE.set(3,0);
         }
-        if (start_from_master && geoController.isupdate_checkpoint_flag() == false) {
+        if (geoController.isupdate_checkpoint_flag() == false) {
             geoController.ManipulateCheckpointList(geo_gps);
             GEO_DATA_t geo_cmd = { 0 };
             geo_cmd.GEO_bearing_angle = geoController.CalculateHeadingAngle(geo_gps, compass_bearing_angle);
@@ -331,16 +324,6 @@ void period_100Hz(uint32_t count)
                     geoController.setupdate_checkpoint_flag(false);
                     geoController.setcheckpoint_latitude(latitudeList);
                     geoController.setcheckpoint_longitude(longitudeList);
-                }
-                break;
-            case 100:
-                if (!start_from_master)
-                {
-                    dbc_decode_MASTER_CONTROL(&master_can_msg, can_msg.data.bytes, &can_msg_hdr);
-                    if (master_can_msg.MASTER_CONTROL_cmd == 1) {
-                        start_from_master = true;
-                        LE.set(1, true);
-                    }
                 }
                 break;
         }
