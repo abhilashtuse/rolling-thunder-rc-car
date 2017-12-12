@@ -339,6 +339,19 @@ void Motor::check_real_speed_update(int count) //to check if curr_mps_speed == c
 
     if(curr_can_speed == 0.0)
     {
+		//to hard break, first set to MAX opposite speed (ex: full REVERSE if going forward)
+		if (this->prev_can_speed > 0)
+		{
+			//max reverse
+			MOTOR->set(10);
+			vTaskDelayMs(4);
+		} else if (this->prev_can_speed < 0) {
+			//max forward
+			MOTOR->set(20);
+			vTaskDelayMs(2);
+		}
+		//Delay shorter than length of shortest periodic (10ms)
+		//udelay(10);
         this->stop_car();
         return;
     }
@@ -392,7 +405,7 @@ void Motor::motor_pid()
     }
     //In order to reverse, sometimes we need to reset the speed to 0
     //Reverse speeds only work if you step from 0
-    if(fabsf(prev_speed_val) > 10.0 && curr_mps_speed == 0 && curr_can_speed != 0)
+    if(fabsf(prev_speed_val) > 5.0 && curr_mps_speed == 0 && curr_can_speed != 0)
     {
         prev_speed_val = 0;
     }
