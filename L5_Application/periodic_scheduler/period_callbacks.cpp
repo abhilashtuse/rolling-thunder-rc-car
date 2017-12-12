@@ -243,6 +243,9 @@ void period_10Hz(uint32_t count)
     uint8_t reg2 = I2C2::getInstance().readReg(0xc0, 0x2);
     uint8_t reg3 = I2C2::getInstance().readReg(0xc0, 0x3);
     compass_bearing_angle = geo_compass.CalculateBearingAngle(reg2, reg3);
+    UPDATE_COMPASS_BEARING_t cur_compass_angle = { 0 };
+    cur_compass_angle.COMPASS_bearing_angle = compass_bearing_angle;
+    dbc_encode_and_send_UPDATE_COMPASS_BEARING(&cur_compass_angle);
     //printf("\n compass_bearing_angle: %f", compass_bearing_angle);
     if (count % 2) {
         char gps_str_arr[200];
@@ -279,7 +282,6 @@ void period_10Hz(uint32_t count)
             // printf("\n heading_angle: %d", geo_cmd.GEO_bearing_angle);
             geo_cmd.GEO_distance_to_checkpoint =geoController.CalculateDistance(geo_gps);
             geo_cmd.GEO_destination_reached = geoController.isFinalDestinationReached(geo_cmd.GEO_distance_to_checkpoint) ? 1 : 0;
-            geo_cmd.COMPASS_bearing_angle = compass_bearing_angle;
 
             // Encode the CAN message's data bytes, get its header and set the CAN message's DLC and length
             if (dbc_encode_and_send_GEO_DATA(&geo_cmd)){
