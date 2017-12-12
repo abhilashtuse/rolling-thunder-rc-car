@@ -43,6 +43,8 @@
 #include "geo_compass.h"
 using namespace std;
 
+#define PRINT_CHECKPOINTS 0
+
 // Not using MIA for now. Checkpoints are not received periodically
 // const uint32_t             BRIDGE_START_STOP__MIA_MS = 3000;
 // const BRIDGE_START_STOP_t  BRIDGE_START_STOP__MIA_MSG = { 0 };
@@ -220,6 +222,7 @@ void period_1Hz(uint32_t count)
         //        else
         //            printf("\ntx failed");
     }
+#if PRINT_CHECKPOINTS
     if (geoController.isupdate_checkpoint_flag() == false) {
         list<double> lat = geoController.getcheckpoint_latitude();
         list<double> longi = geoController.getcheckpoint_longitude();
@@ -227,6 +230,7 @@ void period_1Hz(uint32_t count)
         for (std::list<double>::iterator long_it=longi.begin(); long_it != longi.end(); ++lat_it,++long_it)
             printf("\nCheckpoints received: lat: %f long: %f", *lat_it, *long_it);
     }
+#endif
 }
 
 // This method needs to be defined once, and AGC will call it for all dbc_encode_and_send_FOO() functions
