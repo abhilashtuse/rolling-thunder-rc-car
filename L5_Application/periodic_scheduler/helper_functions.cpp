@@ -8,9 +8,8 @@
 #include "gpio.hpp"
 #include "rt.h"
 
-// UPDATE_CURRENT_LOCATION__MIA_MS = 3000;
-// UPDATE_CURRENT_LOCATION__MIA_MSG = {0,0};
-
+const uint32_t UPDATE_CURRENT_LOCATION__MIA_MS = 3000;
+UPDATE_CURRENT_LOCATION_t UPDATE_CURRENT_LOCATION__MIA_MSG = {0};
 using namespace std;
 
 bool dbc_app_send_can_msg(uint32_t mid, uint8_t dlc, uint8_t bytes[8])
@@ -23,7 +22,7 @@ bool dbc_app_send_can_msg(uint32_t mid, uint8_t dlc, uint8_t bytes[8])
     return CAN_tx(can1, &can_msg, 0);
 }
 
-void    start_car(float latitude, float longitude, int start)
+void    start_car(double latitude, double longitude, int start)
 {
     BRIDGE_START_STOP_t start_stop = {0};
     start_stop.BRIDGE_START_STOP_cmd = start;
@@ -48,19 +47,6 @@ uint8_t get_two(char *ptr)
     return (n_c);
 }
 
-float decode_lat(char *bytecode, unsigned int start, unsigned int end)
-{
-    float latitude = 0;
-    while(start < end && bytecode[start])
-    {
-        latitude *= 10;
-        latitude += bytecode[start] - '0';
-        start++;
-    }
-    return (latitude);
-}
-
-
 void    bridge_heartbeat()
 {
     BRIDGE_HB_t heartbeat = {0};
@@ -83,37 +69,49 @@ void    convert_to_app_format(char **str, double lat, double lng)
 void rx_can(void)
 {
 	can_msg_t can_rx_msg;
-    CAN_rx(can1, &can_rx_msg, 0x50);
-	if (can_rx_msg.msg_id == 150)
-	{
-		//do stuff with sensor data from sensor
-		// LE.on(1);
-	} else if (can_rx_msg.msg_id == 350) {
-        //do stuff with motor feedback
-        // LE.on(4);
-	} else if (can_rx_msg.msg_id == 400) {
-
-        UPDATE_CURRENT_LOCATION_t curr_loc = {0};
-        dbc_msg_hdr_t can_msg_hdr;
-        can_msg_hdr.dlc = can_rx_msg.frame_fields.data_len;
-        can_msg_hdr.mid = can_rx_msg.msg_id;
-        dbc_decode_UPDATE_CURRENT_LOCATION(&curr_loc, can_rx_msg.data.bytes, &can_msg_hdr);
-
-        char str[30] = {0};
-        char *to_app = str;
-        convert_to_app_format(&to_app, curr_loc.UPDATE_calculated_latitude, curr_loc.UPDATE_calculated_longitude);
-        
-        if(dbc_handle_mia_UPDATE_CURRENT_LOCATION(&curr_loc, 10))
+    UPDATE_CURRENT_LOCATION_t curr_loc = {0};
+    while(CAN_rx(can1, &can_rx_msg, 0))
+    {
+        if (can_rx_msg.msg_id == 150)
         {
+            //do stuff with sensor data from sensor
+            // LE.on(1);
+        } else if (can_rx_msg.msg_id == 350) {
+            //do stuff with motor feedback
+            // LE.on(4);
+        } else if (can_rx_msg.msg_id == 400) {
+            dbc_msg_hdr_t can_msg_hdr;
+            can_msg_hdr.dlc = can_rx_msg.frame_fields.data_len;
+            can_msg_hdr.mid = can_rx_msg.msg_id;
+            dbc_decode_UPDATE_CURRENT_LOCATION(&curr_loc, can_rx_msg.data.bytes, &can_msg_hdr);
 
+            UPDATE_CURRENT_LOCATION__MIA_MSG.UPDATE_calculated_latitude = curr_loc.UPDATE_calculated_latitude;
+            UPDATE_CURRENT_LOCATION__MIA_MSG.UPDATE_calculated_longitude = curr_loc.UPDATE_calculated_longitude;
+
+            char str[30] = {0};
+            char *to_app = str;
+            convert_to_app_format(&to_app, curr_loc.UPDATE_calculated_latitude, curr_loc.UPDATE_calculated_longitude);
+            /*
+            * Send coordinates to the app
+            */
+            printf("To app: %s\n", to_app);
+            Uart3 &u3 = Uart3::getInstance();
+            u3.putline(to_app);
         }
-        /*
-        * Send coordinates to the app
-        */
-        // printf("To app: %s\n", to_app);
-        Uart3 &u3 = Uart3::getInstance();
-        u3.putline(to_app);
-	}
+        else if(dbc_handle_mia_UPDATE_CURRENT_LOCATION(&UPDATE_CURRENT_LOCATION__MIA_MSG, 10))
+        {
+            char str[30] = {0};
+            char *to_app = str;
+            if (UPDATE_CURRENT_LOCATION__MIA_MSG.UPDATE_calculated_latitude > 0 &&
+                UPDATE_CURRENT_LOCATION__MIA_MSG.UPDATE_calculated_longitude > 0){
+                convert_to_app_format(&to_app, UPDATE_CURRENT_LOCATION__MIA_MSG.UPDATE_calculated_latitude,
+                UPDATE_CURRENT_LOCATION__MIA_MSG.UPDATE_calculated_longitude);
+                printf("To app: %s\n", to_app);
+                Uart3 &u3 = Uart3::getInstance();
+                u3.putline(to_app);
+            }
+        }
+    }
 }
 
 void    parse_and_send(char **str)
@@ -161,7 +159,6 @@ void    parse_and_send(char **str)
         /*
         * Checkpoints
         */
-        // printf("%s\n", buffer);
         char lat[nb_lat] = {0};
         char lng[nb_long] = {0};
         
@@ -182,6 +179,8 @@ void    parse_and_send(char **str)
         checkpoint.BRIDGE_FINAL_COORDINATE = (n_checkpoints <= 0) ? 1 : 0;
 
         dbc_encode_and_send_BRIDGE_START_STOP(&checkpoint);
+        // Uart3 &u3 = Uart3::getInstance();
+        // u3.flush();
 
         printf("Lat: %f\nLong: %f\nFinal?: %d\n",
         checkpoint.BRIDGE_CHECKPOINT_latitude,checkpoint.BRIDGE_CHECKPOINT_longitude,checkpoint.BRIDGE_FINAL_COORDINATE);

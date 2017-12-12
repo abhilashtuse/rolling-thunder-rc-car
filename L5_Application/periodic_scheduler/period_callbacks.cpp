@@ -60,7 +60,8 @@ bool period_init(void)
     /**
      * FreeRTOS Queue
     */
-    qh = xQueueCreate(10, sizeof(char *));  
+    qh = xQueueCreate(10, sizeof(char *));
+    
     /*
      * Bluetooth Connection
      * Baud rate of device used is 9600
@@ -96,11 +97,8 @@ void period_10Hz(uint32_t count)
     */
     rx_can();
 
-    // if(!ptr){
     xQueueReceive(qh, &ptr, 0);
-    // }
     if (ptr && *ptr){
-        // printf("PTR: %s\n", ptr);
         parse_and_send(&ptr);
         buffer[0] = '\0';
     }
@@ -136,7 +134,6 @@ void period_100Hz(uint32_t count)
         buffer[rd] = '\0';
         char *tmp = buffer;        
         printf("Full payload: %s %d\n", buffer, rd);
-        // parse_and_send(rd, ptr);
 
         /**
          * FreeRTOS queue send payload
