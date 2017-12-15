@@ -109,31 +109,36 @@ void period_100Hz(uint32_t count)
 {
     if (start_message_received) {
         time_count++;
+        //Middle and back sensors triggered sequentially(Maxbotix)
+        if(time_count == 1)
+        {
+            //maxbotix 1 - middle sensor
+            set_sensor_pin_as_output(middle_gpio);
+            trigger_sensor(middle_gpio , false);
+            set_sensor_pin_as_input(middle_gpio);
+            //maxbotix 2 - back sensor
+            set_sensor_pin_as_output(back_gpio);
+            trigger_sensor(back_gpio,false);
+            set_sensor_pin_as_input(back_gpio);
+
+        }
         //left and right sensors triggered sequentially(parallax ping)
-        if (time_count == 1) {
+        else if(time_count == 6)
+        {
             //parallax ping 1 - left sensor
             set_sensor_pin_as_output(left_gpio);
             trigger_sensor(left_gpio, true);
             set_sensor_pin_as_input(left_gpio);
             //parallax ping 1 - right sensor
             set_sensor_pin_as_output(right_gpio);
-            trigger_sensor(right_gpio, true);
+            trigger_sensor(right_gpio,true);
             set_sensor_pin_as_input(right_gpio);
         }
-        //Middle and back sensors triggered sequentially(parallax ping)
-        else if (time_count == 2) {
-            //maxbotix 1 - middle sensor
-            set_sensor_pin_as_output(middle_gpio);
-            trigger_sensor(middle_gpio, false);
-            set_sensor_pin_as_input(middle_gpio);
-            //maxbotix 2 - back sensor
-            set_sensor_pin_as_output(back_gpio);
-            trigger_sensor(back_gpio, false);
-            set_sensor_pin_as_input(back_gpio);
-        }
 
-        //All sensor values transmitted every 100 ms
-        else if (time_count == 10) {
+
+        //All sensor values transmitted every 90ms
+        else if(time_count == 9)
+        {
             can_transmit_message(distance_left, distance_middle, distance_right, distance_back);
             time_count = 0;
         }

@@ -17,7 +17,7 @@ MASTER_CONTROL_t master_can_start_msg;
 
 void initialize_can()
 {
-    CAN_init(can1,100,5,5,NULL,NULL);
+    CAN_init(can1,100,50,50,NULL,NULL);
     CAN_bypass_filter_accept_all_msgs();
     CAN_reset_bus(can1);
 }
