@@ -44,9 +44,11 @@ extern uint16_t distance_back;
 extern uint8_t distance_right;
 
 GPIO left_gpio(P2_4);
-GPIO middle_gpio(P2_1);
+GPIO middle_gpio_rx(P2_1);
+GPIO middle_gpio_pwm(P2_3);
 GPIO right_gpio(P2_2);
-GPIO back_gpio(P2_0);
+GPIO back_gpio_rx(P2_0);
+GPIO back_gpio_pwm(P2_5);
 
 int time_count = 0;
 bool start_message_received = false;
@@ -66,6 +68,11 @@ const uint32_t PERIOD_MONITOR_TASK_STACK_SIZE_BYTES = (512 * 3);
 bool period_init(void)
 {
     initialize_can();
+    //Configure the pins as rx pin as output and pwm pin as input
+    set_sensor_pin_as_output(middle_gpio_rx);
+    set_sensor_pin_as_input(middle_gpio_pwm);
+    set_sensor_pin_as_output(middle_gpio_rx);
+    set_sensor_pin_as_input(back_gpio_pwm);
     //enable interrupt for rising and falling edge
     enable_interrupt(4);
     enable_interrupt(3);
@@ -112,14 +119,11 @@ void period_100Hz(uint32_t count)
         //Middle and back sensors triggered sequentially(Maxbotix)
         if(time_count == 1)
         {
+
             //maxbotix 1 - middle sensor
-            set_sensor_pin_as_output(middle_gpio);
-            trigger_sensor(middle_gpio , false);
-            set_sensor_pin_as_input(middle_gpio);
+            trigger_sensor(middle_gpio_rx , false);
             //maxbotix 2 - back sensor
-            set_sensor_pin_as_output(back_gpio);
-            trigger_sensor(back_gpio,false);
-            set_sensor_pin_as_input(back_gpio);
+            trigger_sensor(back_gpio_rx,false);
 
         }
         //left and right sensors triggered sequentially(parallax ping)
