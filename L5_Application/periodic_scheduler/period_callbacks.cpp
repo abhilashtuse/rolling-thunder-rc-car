@@ -43,8 +43,8 @@
 #include "geo_compass.h"
 using namespace std;
 
-#define PRINT_CHECKPOINTS 0
-
+#define PRINT_CHECKPOINTS 1
+int print_flag = 0;
 // Not using MIA for now. Checkpoints are not received periodically
 // const uint32_t             BRIDGE_START_STOP__MIA_MS = 3000;
 // const BRIDGE_START_STOP_t  BRIDGE_START_STOP__MIA_MSG = { 0 };
@@ -214,14 +214,20 @@ void period_1Hz(uint32_t count)
     GEO_HB_t geo_hb_cmd = { 0 };
     geo_hb_cmd.GEO_heartbeat = 1;
     dbc_encode_and_send_GEO_HB(&geo_hb_cmd);
+    UPDATE_COMPASS_BEARING_t cur_compass_angle = { 0 };
+    cur_compass_angle.COMPASS_bearing_angle = compass_bearing_angle;
+    dbc_encode_and_send_UPDATE_COMPASS_BEARING(&cur_compass_angle);
 
 #if PRINT_CHECKPOINTS
     if (geoController.isupdate_checkpoint_flag() == false) {
         list<double> lat = geoController.getcheckpoint_latitude();
         list<double> longi = geoController.getcheckpoint_longitude();
         std::list<double>::iterator lat_it=lat.begin();
+        if (print_flag) {
         for (std::list<double>::iterator long_it=longi.begin(); long_it != longi.end(); ++lat_it,++long_it)
             printf("\nCheckpoints received: lat: %f long: %f", *lat_it, *long_it);
+        }
+        print_flag = 0;
     }
 #endif
 }
@@ -243,9 +249,6 @@ void period_10Hz(uint32_t count)
     uint8_t reg2 = I2C2::getInstance().readReg(0xc0, 0x2);
     uint8_t reg3 = I2C2::getInstance().readReg(0xc0, 0x3);
     compass_bearing_angle = geo_compass.CalculateBearingAngle(reg2, reg3);
-    UPDATE_COMPASS_BEARING_t cur_compass_angle = { 0 };
-    cur_compass_angle.COMPASS_bearing_angle = compass_bearing_angle;
-    dbc_encode_and_send_UPDATE_COMPASS_BEARING(&cur_compass_angle);
     //printf("\n compass_bearing_angle: %f", compass_bearing_angle);
     if (count % 2) {
         char gps_str_arr[200];
@@ -328,6 +331,9 @@ void period_100Hz(uint32_t count)
                     geoController.setupdate_checkpoint_flag(false);
                     geoController.setcheckpoint_latitude(latitudeList);
                     geoController.setcheckpoint_longitude(longitudeList);
+                    latitudeList.clear();
+                    longitudeList.clear();
+                    print_flag = 1;
                 }
                 break;
         }
