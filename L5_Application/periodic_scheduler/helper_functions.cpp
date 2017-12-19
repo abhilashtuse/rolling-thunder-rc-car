@@ -6,11 +6,11 @@
 #include "io.hpp"
 #include "periodic_callback.h"
 #include "gpio.hpp"
-#include "rt.h"
+#include "genera_ted_can.h"
+#include "lpc_sys.h"
 
 const uint32_t UPDATE_CURRENT_LOCATION__MIA_MS = 3000;
 UPDATE_CURRENT_LOCATION_t UPDATE_CURRENT_LOCATION__MIA_MSG = {0};
-using namespace std;
 
 bool dbc_app_send_can_msg(uint32_t mid, uint8_t dlc, uint8_t bytes[8])
 {
@@ -72,14 +72,7 @@ void rx_can(void)
     UPDATE_CURRENT_LOCATION_t curr_loc = {0};
     while(CAN_rx(can1, &can_rx_msg, 0))
     {
-        if (can_rx_msg.msg_id == 150)
-        {
-            //do stuff with sensor data from sensor
-            // LE.on(1);
-        } else if (can_rx_msg.msg_id == 350) {
-            //do stuff with motor feedback
-            // LE.on(4);
-        } else if (can_rx_msg.msg_id == 400) {
+        if (can_rx_msg.msg_id == 400) {
             dbc_msg_hdr_t can_msg_hdr;
             can_msg_hdr.dlc = can_rx_msg.frame_fields.data_len;
             can_msg_hdr.mid = can_rx_msg.msg_id;
@@ -94,7 +87,7 @@ void rx_can(void)
             /*
             * Send coordinates to the app
             */
-            printf("To app: %s\n", to_app);
+            // printf("To app: %s\n", to_app);
             Uart3 &u3 = Uart3::getInstance();
             u3.putline(to_app);
         }
@@ -106,7 +99,7 @@ void rx_can(void)
                 UPDATE_CURRENT_LOCATION__MIA_MSG.UPDATE_calculated_longitude > 0){
                 convert_to_app_format(&to_app, UPDATE_CURRENT_LOCATION__MIA_MSG.UPDATE_calculated_latitude,
                 UPDATE_CURRENT_LOCATION__MIA_MSG.UPDATE_calculated_longitude);
-                printf("To app: %s\n", to_app);
+                // printf("To app: %s\n", to_app);
                 Uart3 &u3 = Uart3::getInstance();
                 u3.putline(to_app);
             }
@@ -179,12 +172,16 @@ void    parse_and_send(char **str)
         checkpoint.BRIDGE_FINAL_COORDINATE = (n_checkpoints <= 0) ? 1 : 0;
 
         dbc_encode_and_send_BRIDGE_START_STOP(&checkpoint);
-        // Uart3 &u3 = Uart3::getInstance();
-        // u3.flush();
+        
 
-        printf("Lat: %f\nLong: %f\nFinal?: %d\n",
-        checkpoint.BRIDGE_CHECKPOINT_latitude,checkpoint.BRIDGE_CHECKPOINT_longitude,checkpoint.BRIDGE_FINAL_COORDINATE);
+        // printf("Lat: %f\nLong: %f\nFinal?: %d\n",
+        // checkpoint.BRIDGE_CHECKPOINT_latitude,checkpoint.BRIDGE_CHECKPOINT_longitude,checkpoint.BRIDGE_FINAL_COORDINATE);
 
         *str = buffer;
+
+        if (checkpoint.BRIDGE_FINAL_COORDINATE)
+        {
+            sys_reboot();
+        }
     }       
 }

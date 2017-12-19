@@ -20,21 +20,10 @@
 #include <math.h>
 #include "uart3.hpp"
 
-#define CAR_STOP 0x01
-#define CAR_START 0x02
-#define COORD_TURN_LEFT 0x03
-#define COORD_TURN_RIGHT 0x04
-#define COORD_REDUCE_SPEED 0x05
-#define COORD_ACCELERATE 0x06
-
-// public:
-//     string DoubleToString(double val);
 
 uint8_t get_two(char *ptr);
-float decode_long(char *bytecode, unsigned int start, unsigned int end);
-float decode_lat(char *bytecode, unsigned int start, unsigned int end);
 bool dbc_app_send_can_msg(uint32_t mid, uint8_t dlc, uint8_t bytes[8]);
-void    start_car(float latitude, float longitude, int start);
+void    start_car(double latitude, double longitude, int start);
 void    bridge_heartbeat();
 void rx_can(void);
 void    parse_and_send(char **str);
@@ -200,7 +189,7 @@ extern const MOTOR_UPDATE_t                       MOTOR_UPDATE__MIA_MSG;
 extern const uint32_t                             MOTOR_FEEDBACK__MIA_MS;
 extern const MOTOR_FEEDBACK_t                     MOTOR_FEEDBACK__MIA_MSG;
 extern const uint32_t                             UPDATE_CURRENT_LOCATION__MIA_MS;
-extern const UPDATE_CURRENT_LOCATION_t            UPDATE_CURRENT_LOCATION__MIA_MSG;
+extern UPDATE_CURRENT_LOCATION_t            UPDATE_CURRENT_LOCATION__MIA_MSG;
 extern const uint32_t                             BRIDGE_HB__MIA_MS;
 extern const BRIDGE_HB_t                          BRIDGE_HB__MIA_MSG;
 extern const uint32_t                             SENSOR_HB__MIA_MS;
