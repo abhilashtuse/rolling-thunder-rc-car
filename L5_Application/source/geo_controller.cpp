@@ -57,9 +57,7 @@ double GeoController::CalculateBearingAngle(GeoGPS geo_gps)
             (cos(gps_latitude) * sin(latitude)) -
             sin(gps_latitude) * cos(latitude) * cos(diff_longitude));
 
-    bearing = (bearing * 180)/M_PI;
-    bearing = fmod(bearing + 360, 360); // Normalize (0 to 360)
-    return bearing;
+    return (bearing * 180)/M_PI;
 }
 
 /*
