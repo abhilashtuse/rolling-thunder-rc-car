@@ -117,10 +117,10 @@ void period_1Hz(uint32_t count)
     send_heartbeat();
     update_TFT();
     LE.on(1);
-    printf("\nADC values ==========\n");
-    for (int i = 0; i <= 7; i++)
-        printf("adc0_%d = %d\n", i, adc0_get_reading(i));
-    printf("\n");
+    //printf("\nADC values ==========\n");
+    //for (int i = 0; i <= 7; i++)
+      //  printf("adc0_%d = %d\n", i, adc0_get_reading(i));
+    //printf("\n");
 }
 
 void period_10Hz(uint32_t count)

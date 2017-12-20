@@ -196,7 +196,7 @@ void Motor::get_can_vals(uint32_t count) //to update curr_can_speed, curr_can_an
                 curr_can_angle = ((float) motor_can_msg.MOTOR_turn_angle);
                 LE.on(2);
                 LD.setNumber((int)curr_can_speed);
-                printf("Curr_can_speed = %f mps\n", Motor::getInstance().curr_can_speed);
+                //printf("Curr_can_speed = %f mps\n", Motor::getInstance().curr_can_speed);
                 //break;
             }
             else {
@@ -437,7 +437,7 @@ float battery_voltage()
     float adc5 = adc0_get_reading(5) / maxADC;
     //battery voltage is 8.4*adc percentage
     float battery_voltage = adc5 / volt_div;
-    printf("battery_voltage: %f\n", battery_voltage);
+    //printf("battery_voltage: %f\n", battery_voltage);
     return battery_voltage;
 }
 void update_TFT()
