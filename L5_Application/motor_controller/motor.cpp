@@ -7,7 +7,7 @@
  */
 
 #include "motor.hpp"
-
+#include "gpio.hpp"
 #define speed_margin 0.20
 
 #define max_span_angle 30
@@ -22,6 +22,26 @@ int count = 0;
 float speed_step = 0.001;
 Motor::Motor()
 {
+    static GPIO f_l(P1_23);
+    front_light = &f_l;
+    static GPIO l_l(P1_22);
+    left_light = &l_l;
+    static GPIO r_l(P1_20);
+    right_light = &r_l;
+    static GPIO re_l(P1_19);
+    rear_light = &re_l;
+
+    front_light->setAsOutput();
+    left_light->setAsOutput();
+    right_light->setAsOutput();
+    rear_light->setAsOutput();
+
+    //turn on head lights
+    front_light->setHigh();
+    left_light->setLow();
+    right_light->setLow();
+    rear_light->setLow();
+
     use_prev_speed = false;
     system_started = 1;
     static PWM motor(PWM::pwm2, 100);
@@ -54,6 +74,8 @@ Motor::Motor()
     middle_sensor = 0;
     right_sensor = 0;
     back_sensor = 0;
+
+
 }
 
 bool Motor::init()
@@ -82,6 +104,14 @@ bool Motor::init()
     middle_sensor = 0;
     right_sensor = 0;
     back_sensor = 0;
+
+    //turn on head lights
+    front_light->setHigh();
+    left_light->setLow();
+    right_light->setLow();
+    rear_light->setLow();
+
+
     return true;
 }
 
@@ -195,7 +225,9 @@ void Motor::get_can_vals(uint32_t count) //to update curr_can_speed, curr_can_an
                 curr_can_speed = ((float) motor_can_msg.MOTOR_speed);
                 curr_can_angle = ((float) motor_can_msg.MOTOR_turn_angle);
                 LE.on(2);
-                LD.setNumber((int)curr_can_speed);
+                //LD.setNumber((int)curr_can_speed);
+
+
                 //printf("Curr_can_speed = %f mps\n", Motor::getInstance().curr_can_speed);
                 //break;
             }
@@ -427,7 +459,7 @@ void rps_cnt_hdlr() //to update prev_rps_cnt and curr_rps_cnt;
     M->total_count++;
 }
 
-float battery_voltage()
+int battery_voltage()
 {
 	//12 bit ADC, max value is 4096
 	float maxADC = 4096;
@@ -438,13 +470,13 @@ float battery_voltage()
     //battery voltage is 8.4*adc percentage
     float battery_voltage = adc5 / volt_div;
     //printf("battery_voltage: %f\n", battery_voltage);
-    return battery_voltage;
+    return (int)battery_voltage;
 }
 void update_TFT()
 {
     Motor *M = &Motor::getInstance();
 
-    send_Battery_data((uint8_t )battery_voltage());
+    send_Battery_data((uint8_t)battery_voltage());
     //send_Battery_data(90);
     vTaskDelayMs(10);
     send_Compass_data(M->COMPASS_bearing_angle);

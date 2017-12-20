@@ -59,12 +59,14 @@ const uint32_t PERIOD_TASKS_STACK_SIZE_BYTES = (512 * 4);
  */
 const uint32_t PERIOD_MONITOR_TASK_STACK_SIZE_BYTES = (512 * 3);
 
+Motor *m;
 //flag to see first periodic function call or not
 //bool first_time;
 
 // Called once before the RTOS is started, this is a good place to initialize things once
 bool period_init(void)
 {
+    m = &(Motor::getInstance());
     bool rc;
     //first_time = 1;
     TFT_LCD_init();
@@ -142,6 +144,24 @@ void period_10Hz(uint32_t count)
      LE.off(4);*/
 //if(count%5==0)
 //    update_TFT();
+    if (m->curr_can_angle < -15) {
+        m->left_light->toggle();
+        m->right_light->setLow();
+    }
+    else if (m->curr_can_angle > 15) {
+        m->left_light->setLow();
+        m->right_light->toggle();
+    }
+    else {
+        m->left_light->setLow();
+        m->right_light->setLow();
+    }
+
+    if (m->curr_can_speed >= 0) {
+        m->rear_light->setLow();
+    }
+    else
+        m->rear_light->setHigh();
 }
 
 void period_100Hz(uint32_t count)
